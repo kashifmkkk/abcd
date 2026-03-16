@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Responsive, WidthProvider, type LayoutItem } from "react-grid-layout/legacy";
 import type { DashboardSpec, WidgetDef } from "@/types/spec";
 import { WidgetRenderer } from "@/components/dashboard/WidgetRenderer";
-import { useDashboardData } from "@/hooks/useDashboardData";
 import { GripVertical } from "lucide-react";
 
 interface DashboardRendererProps {
@@ -20,7 +20,8 @@ function getDefaultLayout(widgetId: string): LayoutItem {
 }
 
 export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
-  const { tick, refresh } = useDashboardData(projectId);
+  const searchParams = useSearchParams();
+  const lastUploadTimestamp = searchParams.get("uploadedAt") ?? "";
   const [records, setRecords] = useState<EntityRecordsMap>({});
   const [layout, setLayout] = useState<LayoutItem[]>(spec.layout.items as unknown as LayoutItem[]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -28,7 +29,9 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
 
   const fetchEntity = useCallback(
     async (entityName: string) => {
-      const res = await fetch(`/api/entities/${entityName}?projectId=${projectId}`);
+      const res = await fetch(`/api/entities/${entityName}?projectId=${projectId}`, {
+        cache: "no-store",
+      });
       const json = await res.json();
       if (json.success) {
         setRecords((prev) => ({ ...prev, [entityName]: json.data }));
@@ -37,19 +40,24 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
     [projectId]
   );
 
+  const refreshDashboardSnapshot = useCallback(async () => {
+    await fetch(`/api/dashboard/${projectId}`, { cache: "no-store" });
+    setRefreshKey((prev) => prev + 1);
+  }, [projectId]);
+
   const refreshAll = useCallback(async () => {
     await Promise.all(spec.entities.map((entity) => fetchEntity(entity.name)));
-    await refresh();
-  }, [fetchEntity, refresh, spec.entities]);
+    await refreshDashboardSnapshot();
+  }, [fetchEntity, refreshDashboardSnapshot, spec.entities]);
 
   useEffect(() => {
-    void refreshAll();
-  }, [refreshAll]);
-
-  useEffect(() => {
-    setRefreshKey(tick);
     void Promise.all(spec.entities.map((entity) => fetchEntity(entity.name)));
-  }, [tick, fetchEntity, spec.entities]);
+  }, [fetchEntity, spec.entities]);
+
+  useEffect(() => {
+    if (!lastUploadTimestamp) return;
+    void refreshAll();
+  }, [lastUploadTimestamp, refreshAll]);
 
   useEffect(() => {
     if (!hasMountedRef.current) {

@@ -122,7 +122,7 @@ export function DashboardShell({ spec, projectId, projectName, children }: Dashb
   }
 
   return (
-    <div className="flex h-[calc(100vh-56px)] overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-[calc(100vh-56px)] overflow-hidden bg-slate-50 dark:bg-[#070a10]">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/40 backdrop-blur-sm lg:hidden"
@@ -133,11 +133,10 @@ export function DashboardShell({ spec, projectId, projectName, children }: Dashb
       <aside
         className={`fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-200 dark:border-slate-800 dark:bg-slate-900 lg:static lg:z-auto lg:translate-x-0 lg:shadow-none ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-        style={{ top: "56px", height: "calc(100vh - 56px)" }}
+        } dashboard-shell-aside`}
       >
         <div className="flex h-14 items-center gap-2.5 border-b border-slate-100 px-4 dark:border-slate-800">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-indigo-600 shadow-sm">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-500 shadow-sm">
             <LayoutDashboard size={13} className="text-white" />
           </div>
           <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
@@ -146,7 +145,7 @@ export function DashboardShell({ spec, projectId, projectName, children }: Dashb
         </div>
 
         <div className="flex gap-2 border-b border-slate-100 px-3 py-2.5 dark:border-slate-800">
-          <span className="flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+          <span className="flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
             <TrendingUp size={10} />
             {kpiCount} KPIs
           </span>
@@ -175,21 +174,21 @@ export function DashboardShell({ spec, projectId, projectName, children }: Dashb
                         }}
                         className={`group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-all duration-100 ${
                           active
-                            ? "bg-indigo-50 text-indigo-700 font-medium dark:bg-indigo-900/30 dark:text-indigo-300"
+                            ? "bg-amber-50 text-amber-700 font-medium dark:bg-amber-900/20 dark:text-amber-300"
                             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
                         }`}
                       >
                         <span
                           className={
                             active
-                              ? "text-indigo-500 dark:text-indigo-400"
+                              ? "text-amber-500 dark:text-amber-400"
                               : "text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300"
                           }
                         >
                           {item.icon}
                         </span>
                         <span className="flex-1 truncate text-left">{item.label}</span>
-                        {active && <ChevronRight size={12} className="text-indigo-400 shrink-0" />}
+                        {active && <ChevronRight size={12} className="text-amber-400 shrink-0" />}
                       </button>
                     </li>
                   );
@@ -238,7 +237,7 @@ export function DashboardShell({ spec, projectId, projectName, children }: Dashb
         />
 
         {toastMessage ? (
-          <div className="pointer-events-none fixed right-6 top-20 z-[60] rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-lg dark:border-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+          <div className="pointer-events-none fixed right-6 top-20 z-60 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-lg dark:border-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
             {toastMessage}
           </div>
         ) : null}

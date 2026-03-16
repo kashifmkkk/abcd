@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw, Moon, Sun, Sparkles, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -22,28 +22,14 @@ export function GeneratedDashboardHeader({
   onAiToggle,
   showAi = false,
 }: GeneratedDashboardHeaderProps) {
-  const [dark, setDark] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("dashboard-theme");
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const isDark = saved === "dark" || (!saved && prefersDark);
-      setDark(isDark);
-      document.documentElement.classList.toggle("dark", isDark);
-    } catch {
-      // ignore
-    }
-  }, []);
-
   function toggleDark() {
-    const next = !dark;
-    setDark(next);
+    const next = !document.documentElement.classList.contains("dark");
     document.documentElement.classList.toggle("dark", next);
     try {
-      localStorage.setItem("dashboard-theme", next ? "dark" : "light");
+      localStorage.setItem("theme", next ? "dark" : "light");
     } catch {
       // ignore
     }
@@ -87,7 +73,7 @@ export function GeneratedDashboardHeader({
           title="AI Suggestions"
           className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all ${
             showAi
-              ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+              ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
               : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           }`}
         >
@@ -110,10 +96,11 @@ export function GeneratedDashboardHeader({
         <button
           type="button"
           onClick={toggleDark}
-          title={dark ? "Light mode" : "Dark mode"}
+          title="Toggle theme"
           className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
         >
-          {dark ? <Sun size={14} /> : <Moon size={14} />}
+          <Sun size={14} className="hidden dark:block" />
+          <Moon size={14} className="block dark:hidden" />
         </button>
       </div>
     </header>

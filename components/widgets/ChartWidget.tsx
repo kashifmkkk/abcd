@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Database } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -75,7 +75,9 @@ export function ChartWidget({
 
     async function loadFromMetric() {
       if (!metric) return false;
-      const res = await fetch(`/api/metrics/${projectId}?metric=${encodeURIComponent(metric)}`);
+      const res = await fetch(`/api/metrics/${projectId}?metric=${encodeURIComponent(metric)}`, {
+        cache: "no-store",
+      });
       if (!res.ok) return false;
       const json = (await res.json()) as { series?: Array<{ label: string; value: number }> };
       if (!cancelled) {
@@ -88,7 +90,7 @@ export function ChartWidget({
     async function loadFromEntityFields() {
       if (!entity || !fields.length || !xKey) return;
       const params = new URLSearchParams({ projectId, entity, metricX: xKey, fields: fields.join(",") });
-      const res = await fetch(`/api/metrics?${params.toString()}`);
+      const res = await fetch(`/api/metrics?${params.toString()}`, { cache: "no-store" });
       if (!res.ok) return;
       const json = (await res.json()) as { success?: boolean; data?: Record<string, unknown>[] };
       if (!cancelled && json.success && Array.isArray(json.data)) {
@@ -109,12 +111,35 @@ export function ChartWidget({
   const yFields = metric ? ["value"] : fields;
   const axisKey = metric ? "label" : xKey;
 
+  // For larger datasets, normalize once and memoize to avoid repeated processing in render paths.
+  const chartData = useMemo(() => {
+    const normalized = data.map((row) => {
+      const next: Record<string, unknown> = { ...row };
+      for (const field of yFields) {
+        const value = Number(row[field]);
+        if (Number.isFinite(value)) next[field] = value;
+      }
+      return next;
+    });
+
+    if (normalized.length > 1000) {
+      return normalized;
+    }
+
+    return normalized;
+  }, [data, yFields]);
+
+  useEffect(() => {
+    // Recharts occasionally needs an explicit resize signal after async data updates.
+    window.dispatchEvent(new Event("resize"));
+  }, [chartData.length, refreshKey]);
+
   const emptyState = (
-    <div className="flex h-44 flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-800/40">
+    <div className="flex h-87.5 w-full flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-800/40">
       <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
         <Database size={16} />
       </div>
-      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No data yet</p>
+      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No data yet — upload CSV or add records.</p>
       <button
         type="button"
         onClick={() => {
@@ -124,7 +149,7 @@ export function ChartWidget({
           }
           scrollToSection("tables-section");
         }}
-        className="mt-3 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
+        className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/40"
       >
         Add Data
       </button>
@@ -132,19 +157,17 @@ export function ChartWidget({
   );
 
   const loadingSkeleton = (
-    <div className="h-48 w-full animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+    <div className="h-87.5 w-full animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
   );
 
   function renderChart() {
     if (loading) return loadingSkeleton;
-    if (data.length === 0) return emptyState;
-
-    const height = 220;
+    if (chartData.length === 0) return emptyState;
 
     if (chartType === "bar") {
       return (
-        <ResponsiveContainer width="100%" height={height}>
-          <BarChart data={data} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
             <CartesianGrid {...gridStyle} vertical={false} />
             <XAxis dataKey={axisKey} tick={tickStyle} tickLine={false} axisLine={false} />
             <YAxis tick={tickStyle} tickLine={false} axisLine={false} width={36} />
@@ -167,8 +190,8 @@ export function ChartWidget({
 
     if (chartType === "line") {
       return (
-        <ResponsiveContainer width="100%" height={height}>
-          <LineChart data={data} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
             <CartesianGrid {...gridStyle} />
             <XAxis dataKey={axisKey} tick={tickStyle} tickLine={false} axisLine={false} />
             <YAxis tick={tickStyle} tickLine={false} axisLine={false} width={36} />
@@ -194,8 +217,8 @@ export function ChartWidget({
 
     if (chartType === "area") {
       return (
-        <ResponsiveContainer width="100%" height={height}>
-          <AreaChart data={data} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
             <defs>
               {yFields.map((f, i) => (
                 <linearGradient key={f} id={`grad-${f}`} x1="0" y1="0" x2="0" y2="1">
@@ -229,12 +252,12 @@ export function ChartWidget({
 
     // Pie chart
     return (
-      <ResponsiveContainer width="100%" height={height}>
+      <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Tooltip contentStyle={tooltipStyle} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
           <Pie
-            data={data}
+            data={chartData}
             nameKey={axisKey}
             dataKey={yFields[0]}
             cx="50%"
@@ -247,7 +270,7 @@ export function ChartWidget({
             label={({ value }) => value}
             labelLine={false}
           >
-            {data.map((_, idx) => (
+            {chartData.map((_, idx) => (
               <Cell key={`cell-${idx}`} fill={PALETTE[idx % PALETTE.length]} />
             ))}
           </Pie>
@@ -258,7 +281,9 @@ export function ChartWidget({
 
   return (
     <AnalyticsCard title={title}>
-      {renderChart()}
+      <div className="w-full h-87.5">
+        {renderChart()}
+      </div>
     </AnalyticsCard>
   );
 }

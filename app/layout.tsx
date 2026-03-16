@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { getServerSession } from "next-auth";
 import { authConfig } from "@/lib/auth/authConfig";
 import { Navbar } from "@/components/layout/Navbar";
+import { prisma } from "@/lib/db/client";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,13 +29,38 @@ export default async function RootLayout({
   const session = await getServerSession(authConfig);
   const isAuthenticated = !!session?.user;
 
+  const recentProjects = session?.user?.id
+    ? await prisma.project.findMany({
+        where: { userId: session.user.id },
+        orderBy: { updatedAt: "desc" },
+        take: 8,
+        select: { id: true, name: true },
+      })
+    : [];
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Navbar isAuthenticated={isAuthenticated} userEmail={session?.user?.email ?? null} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(() => {
+              try {
+                const saved = localStorage.getItem("theme");
+                const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                const isDark = saved === "dark" || (!saved && prefersDark);
+                document.documentElement.classList.toggle("dark", isDark);
+              } catch {}
+            })();`,
+          }}
+        />
+        <Navbar
+          isAuthenticated={isAuthenticated}
+          userEmail={session?.user?.email ?? null}
+          recentProjects={recentProjects}
+        />
         {children}
       </body>
     </html>

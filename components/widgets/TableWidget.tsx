@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { EntityDef } from "@/types/spec";
-import { AnalyticsCard } from "@/components/widgets/AnalyticsCard";
-
 interface TableWidgetProps {
   projectId: string;
   entity: EntityDef;
@@ -80,7 +78,7 @@ export function TableWidget({ projectId, entity, records, onRefresh }: TableWidg
       <CardHeader>
         <CardTitle>{entity.label ?? entity.name}</CardTitle>
       </CardHeader>
-      <CardContent className="flex h-[calc(100%-64px)] min-h-0 flex-col gap-4 overflow-hidden">
+      <CardContent className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {entity.fields.map((field) => (
             <Input
@@ -93,7 +91,8 @@ export function TableWidget({ projectId, entity, records, onRefresh }: TableWidg
           <Button disabled={loading} onClick={handleCreate} className="sm:col-span-2 lg:col-span-1">Create</Button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-200">
+        <div className="w-full overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700">
+        <div className="max-h-125 overflow-y-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -148,6 +147,7 @@ export function TableWidget({ projectId, entity, records, onRefresh }: TableWidg
             ))}
           </TableBody>
         </Table>
+        </div>
         </div>
       </CardContent>
     </Card>

@@ -26,7 +26,7 @@ interface DashboardApiResponse {
   };
 }
 
-export function useDashboardData(projectId: string) {
+export function useDashboardData(projectId: string, lastUploadTimestamp?: string) {
   const [widgets, setWidgets] = useState<WidgetDef[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetricsMap>({});
   const [entityPreviews, setEntityPreviews] = useState<DashboardEntityPreviewsMap>({});
@@ -54,7 +54,7 @@ export function useDashboardData(projectId: string) {
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, lastUploadTimestamp]);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,7 +74,7 @@ export function useDashboardData(projectId: string) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [fetchDashboardData]);
+  }, [fetchDashboardData, lastUploadTimestamp]);
 
   return useMemo(
     () => ({

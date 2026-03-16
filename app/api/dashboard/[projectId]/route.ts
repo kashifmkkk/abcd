@@ -47,16 +47,21 @@ export async function GET(_: Request, { params }: Params) {
 
   const entityPreviewsEntries = await Promise.all(
     spec.entities.map(async (entity) => {
-      const rows = await prisma.dashboardData.findMany({
-        where: { projectId: project.id, entity: entity.name },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      });
+      const [rows, total] = await Promise.all([
+        prisma.dashboardData.findMany({
+          where: { projectId: project.id, entity: entity.name },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        }),
+        prisma.dashboardData.count({
+          where: { projectId: project.id, entity: entity.name },
+        }),
+      ]);
 
       return [
         entity.name,
         {
-          total: rows.length,
+          total,
           records: rows,
         },
       ] as const;

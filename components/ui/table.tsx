@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="w-full overflow-auto">
+    <div className="w-full overflow-x-auto">
       <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   );
@@ -18,11 +18,11 @@ function TableBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectio
 }
 
 function TableRow({ className, ...props }: React.HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn("border-b transition-colors hover:bg-slate-50", className)} {...props} />;
+  return <tr className={cn("border-b border-slate-200 transition-colors hover:bg-amber-50/40 dark:border-slate-800 dark:hover:bg-slate-800/80", className)} {...props} />;
 }
 
 function TableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
-  return <th className={cn("h-10 px-2 text-left align-middle font-medium text-slate-600", className)} {...props} />;
+  return <th className={cn("h-10 px-2 text-left align-middle font-medium text-slate-600 dark:text-slate-300", className)} {...props} />;
 }
 
 function TableCell({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {

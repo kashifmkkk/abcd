@@ -4,6 +4,7 @@ import { parseCsv } from "@/lib/csv/parseCsv";
 import { analyzeCsvData } from "@/lib/ai/dataUnderstanding";
 import { safeValidateSpec } from "@/lib/validators/specValidator";
 import { apiError, apiOk } from "@/lib/api/errors";
+import { computeAllMetrics } from "@/lib/metric-engine/metricEngine";
 
 export async function POST(req: Request) {
   const userId = await getCurrentUserId();
@@ -63,11 +64,16 @@ export async function POST(req: Request) {
       });
     }
 
+    // Force metric recomputation once import completes so first dashboard render has fresh values.
+    await computeAllMetrics(project.id, validated.data);
+    const refreshedAt = Date.now();
+
     return apiOk({
       projectId: project.id,
       projectName: project.name,
       rowsImported: analysis.typedRows.length,
       entity: entityName,
+      refreshedAt,
     }, 201);
   } catch (error) {
     return apiError(500, "INTERNAL_ERROR", "Failed to import CSV", error);

@@ -20,7 +20,9 @@ export function KpiWidget({ projectId, title, metric, refreshKey = 0 }: KpiWidge
     setLoading(true);
 
     async function load() {
-      const res = await fetch(`/api/metrics/${projectId}?metric=${encodeURIComponent(metric)}`);
+      const res = await fetch(`/api/metrics/${projectId}?metric=${encodeURIComponent(metric)}`, {
+        cache: "no-store",
+      });
       if (!res.ok) { setLoading(false); return; }
       const json = (await res.json()) as { value?: number | string };
       if (!cancelled) {

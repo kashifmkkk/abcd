@@ -12,16 +12,17 @@
   --card-border: #e2e8f0;
   --muted: #f8fafc;
   --muted-foreground: #64748b;
-  --accent: #6366f1;
+  --accent: #f59e0b;
 }
 
 .dark {
   --background: #0b1120;
   --foreground: #f1f5f9;
-  --card: #0f172a;
-  --card-border: #1e293b;
+  --card: #0b0f17;
+  --card-border: #222a37;
   --muted: #1e293b;
   --muted-foreground: #94a3b8;
+  --accent: #fbbf24;
 }
 
 @theme inline {
@@ -44,6 +45,15 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.dashboard-surface {
+  background: color-mix(in oklab, var(--background) 94%, #000 6%);
+}
+
+.dashboard-shell-aside {
+  top: 56px;
+  height: calc(100vh - 56px);
 }
 
 /* Sidebar scrollbar */
@@ -69,4 +79,345 @@ aside::-webkit-scrollbar-thumb {
 
 .layout .react-grid-item {
   transition: transform 200ms ease;
+}
+
+/* ── Chat-bot prompt card (CreateDashboardForm) ── */
+.container_chat_bot {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  width: 100%;
+}
+
+.container_chat_bot .container-chat-options {
+  position: relative;
+  display: flex;
+  background: linear-gradient(
+    to bottom right,
+    #7e7e7e,
+    #363636,
+    #363636,
+    #363636,
+    #363636
+  );
+  border-radius: 16px;
+  padding: 1.5px;
+  overflow: hidden;
+}
+
+.container_chat_bot .container-chat-options::after {
+  position: absolute;
+  content: "";
+  top: -10px;
+  left: -10px;
+  background: radial-gradient(
+    ellipse at center,
+    #ffffff,
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.1),
+    rgba(0, 0, 0, 0),
+    rgba(0, 0, 0, 0),
+    rgba(0, 0, 0, 0),
+    rgba(0, 0, 0, 0)
+  );
+  width: 30px;
+  height: 30px;
+  filter: blur(1px);
+}
+
+.container_chat_bot .container-chat-options .chat {
+  display: flex;
+  flex-direction: column;
+  background-color: rgba(0, 0, 0, 0.82);
+  border-radius: 15px;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Name input row at top of chat card */
+.container_chat_bot .chat .chat-name {
+  padding: 10px 10px 0;
+}
+
+.container_chat_bot .chat .chat-name input {
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  width: 100%;
+  color: #ffffff;
+  font-family: sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 4px 8px;
+  outline: none;
+  letter-spacing: 0.01em;
+}
+
+.container_chat_bot .chat .chat-name input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+  transition: color 0.3s ease;
+}
+
+.container_chat_bot .chat .chat-name input:focus::placeholder {
+  color: rgba(255, 255, 255, 0.15);
+}
+
+.container_chat_bot .container-chat-options .chat .chat-bot {
+  position: relative;
+  display: flex;
+}
+
+.container_chat_bot .chat .chat-bot textarea {
+  background-color: transparent;
+  border-radius: 16px;
+  border: none;
+  width: 100%;
+  height: 90px;
+  color: #ffffff;
+  font-family: sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  padding: 10px;
+  resize: none;
+  outline: none;
+}
+
+.container_chat_bot .chat .chat-bot textarea::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.container_chat_bot .chat .chat-bot textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.container_chat_bot .chat .chat-bot textarea::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 5px;
+}
+
+.container_chat_bot .chat .chat-bot textarea::-webkit-scrollbar-thumb:hover {
+  background: #555;
+  cursor: pointer;
+}
+
+.container_chat_bot .chat .chat-bot textarea::placeholder {
+  color: rgba(243, 246, 253, 0.45);
+  transition: all 0.3s ease;
+}
+
+.container_chat_bot .chat .chat-bot textarea:focus::placeholder {
+  color: rgba(54, 54, 54, 0.7);
+}
+
+.container_chat_bot .chat .options {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 10px;
+}
+
+.container_chat_bot .chat .options .btns-add {
+  display: flex;
+  gap: 8px;
+}
+
+.container_chat_bot .chat .options .btns-add button {
+  display: flex;
+  color: rgba(255, 255, 255, 0.25);
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.container_chat_bot .chat .options .btns-add button:hover {
+  transform: translateY(-3px);
+  color: #ffffff;
+}
+
+.container_chat_bot .chat .options .btn-submit {
+  display: flex;
+  padding: 2px;
+  background-image: linear-gradient(to top, #292929, #555555, #292929);
+  border-radius: 10px;
+  box-shadow: inset 0 6px 2px -4px rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.container_chat_bot .chat .options .btn-submit i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  color: #8b8b8b;
+}
+
+.container_chat_bot .chat .options .btn-submit svg {
+  transition: all 0.3s ease;
+}
+
+.container_chat_bot .chat .options .btn-submit:hover i {
+  color: #f3f6fd;
+  filter: drop-shadow(0 0 5px #ffffff);
+}
+
+.container_chat_bot .chat .options .btn-submit:focus i {
+  color: #f3f6fd;
+  filter: drop-shadow(0 0 5px #ffffff);
+}
+
+.container_chat_bot .chat .options .btn-submit:focus svg {
+  transform: scale(1.2) rotate(45deg) translateX(-2px) translateY(1px);
+}
+
+.container_chat_bot .chat .options .btn-submit:active {
+  transform: scale(0.92);
+}
+
+.container_chat_bot .chat .options .btn-submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.container_chat_bot .tags {
+  padding: 14px 0 2px;
+  display: flex;
+  flex-wrap: wrap;
+  color: #ffffff;
+  font-size: 10px;
+  gap: 4px;
+}
+
+.container_chat_bot .tags span {
+  padding: 4px 8px;
+  background-color: #1b1b1b;
+  border: 1.5px solid #363636;
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.container_chat_bot .tags span:hover {
+  background-color: #2a2a2a;
+  border-color: #555555;
+}
+
+.chat-form-error {
+  color: #f87171;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* ── Landing page grid background ── */
+.landing-grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* ── Landing section backgrounds ── */
+.landing-bg-a  { background: #050508; }
+.landing-bg-b  { background: #070710; }
+.landing-bg-footer { background: #030305; }
+.landing-bg-card   { background: #0d0d14; }
+
+/* ── Navbar: dark transparent for landing page ── */
+.navbar-landing { background: rgba(5, 5, 8, 0.85); }
+
+/* ── Gold gradient text ── */
+.landing-gradient-text {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.landing-gradient-text-sm {
+  background: linear-gradient(135deg, #fbbf24, #d97706);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Radial glows ── */
+.landing-hero-glow {
+  background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(245, 158, 11, 0.14), transparent);
+}
+.landing-cta-glow {
+  background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(245, 158, 11, 0.11), transparent);
+}
+.landing-demo-glow {
+  background: radial-gradient(ellipse at center, #f59e0b, transparent 70%);
+}
+.capability-card-glow {
+  background: radial-gradient(circle at 30% 30%, rgba(245, 158, 11, 0.07), transparent 60%);
+}
+
+/* ── Section dividers ── */
+.landing-divider {
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+.landing-divider-faint {
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+
+/* ── Enterprise card background ── */
+.enterprise-card-bg {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+}
+
+/* ── Architecture layers ── */
+/* Icon containers */
+.arch-icon-app      { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.30); color: #f59e0b; }
+.arch-icon-ai       { background: rgba(167, 139, 250, 0.15); border: 1px solid rgba(167, 139, 250, 0.30); color: #a78bfa; }
+.arch-icon-renderer { background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.30); color: #34d399; }
+.arch-icon-data     { background: rgba(96, 165, 250, 0.15); border: 1px solid rgba(96, 165, 250, 0.30); color: #60a5fa; }
+
+/* Card borders */
+.arch-card-app      { border-color: rgba(245, 158, 11, 0.13); }
+.arch-card-ai       { border-color: rgba(167, 139, 250, 0.13); }
+.arch-card-renderer { border-color: rgba(52, 211, 153, 0.13); }
+.arch-card-data     { border-color: rgba(96, 165, 250, 0.13); }
+
+/* Layer badge labels */
+.arch-label-app      { color: #f59e0b; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.25); }
+.arch-label-ai       { color: #a78bfa; background: rgba(167, 139, 250, 0.15); border: 1px solid rgba(167, 139, 250, 0.25); }
+.arch-label-renderer { color: #34d399; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.25); }
+.arch-label-data     { color: #60a5fa; background: rgba(96, 165, 250, 0.15); border: 1px solid rgba(96, 165, 250, 0.25); }
+
+/* Connectors between layers */
+.arch-connector-app      { background: linear-gradient(to bottom, rgba(245, 158, 11, 0.4), transparent); }
+.arch-connector-ai       { background: linear-gradient(to bottom, rgba(167, 139, 250, 0.4), transparent); }
+.arch-connector-renderer { background: linear-gradient(to bottom, rgba(52, 211, 153, 0.4), transparent); }
+
+/* ── MockDashboard bars ── */
+.mock-bar-active   { background: #f59e0b; }
+.mock-bar-inactive { background: rgba(245, 158, 11, 0.35); }
+
+/* ── How-it-works step number bg ── */
+.step-number-bg { background: #070710; }
+
+.howitworks-connector {
+  background: linear-gradient(to right, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.4), rgba(245, 158, 11, 0.2));
+}
+
+.hero-cta-primary {
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.25);
+}
+
+.final-cta-primary {
+  box-shadow: 0 8px 40px rgba(245, 158, 11, 0.22);
 }
