@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Responsive, WidthProvider, type LayoutItem } from "react-grid-layout/legacy";
-import type { DashboardSpec } from "@/types/spec";
+import type { DashboardSpec, WidgetDef } from "@/types/spec";
 import { WidgetRenderer } from "@/components/dashboard/WidgetRenderer";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { GripVertical } from "lucide-react";
 
 interface DashboardRendererProps {
   projectId: string;
@@ -13,6 +14,10 @@ interface DashboardRendererProps {
 
 type EntityRecordsMap = Record<string, Array<{ id: string; data: Record<string, unknown> }>>;
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+function getDefaultLayout(widgetId: string): LayoutItem {
+  return { i: widgetId, x: 0, y: 0, w: 6, h: 4 };
+}
 
 export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
   const { tick, refresh } = useDashboardData(projectId);
@@ -33,7 +38,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
   );
 
   const refreshAll = useCallback(async () => {
-    await Promise.all(spec.entities.map((e) => fetchEntity(e.name)));
+    await Promise.all(spec.entities.map((entity) => fetchEntity(entity.name)));
     await refresh();
   }, [fetchEntity, refresh, spec.entities]);
 
@@ -43,7 +48,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
 
   useEffect(() => {
     setRefreshKey(tick);
-    void Promise.all(spec.entities.map((e) => fetchEntity(e.name)));
+    void Promise.all(spec.entities.map((entity) => fetchEntity(entity.name)));
   }, [tick, fetchEntity, spec.entities]);
 
   useEffect(() => {
@@ -92,43 +97,126 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
     });
   }, [layout, spec.widgets]);
 
-  return (
-    <ResponsiveGridLayout
-      className="layout"
-      layouts={{ lg: layout }}
-      breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-      cols={{
-        lg: spec.layout.columns,
-        md: spec.layout.columns,
-        sm: spec.layout.columns,
-        xs: spec.layout.columns,
-        xxs: spec.layout.columns,
-      }}
-      rowHeight={44}
-      margin={[12, 12]}
-      containerPadding={[0, 0]}
-      onLayoutChange={(next) => setLayout([...next])}
-      draggableHandle=".drag-handle"
-    >
-      {sortedWidgets.map((widget) => {
-        const widgetLayout = layout.find((l) => l.i === widget.id) ?? { i: widget.id, x: 0, y: 0, w: 6, h: 4 };
+  const kpiWidgets = useMemo(() => sortedWidgets.filter((widget) => widget.type === "kpi"), [sortedWidgets]);
+  const chartWidgets = useMemo(() => sortedWidgets.filter((widget) => widget.type === "chart"), [sortedWidgets]);
+  const tableWidgets = useMemo(() => sortedWidgets.filter((widget) => widget.type === "table"), [sortedWidgets]);
 
-        return (
-          <div key={widget.id} data-grid={widgetLayout} className="h-full overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-            <div className="drag-handle mb-2 w-fit rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500 cursor-move">
-              Drag
+  const hasAnyWidgets = sortedWidgets.length > 0;
+
+  const getWidgetLayout = useCallback(
+    (widget: WidgetDef) => layout.find((item) => item.i === widget.id) ?? getDefaultLayout(widget.id),
+    [layout]
+  );
+
+  function updateSectionLayout(nextLayout: LayoutItem[], baseY: number) {
+    setLayout((prev) => {
+      const byId = new Map(prev.map((item) => [item.i, item]));
+
+      for (const item of nextLayout) {
+        byId.set(item.i, { ...item, y: item.y + baseY });
+      }
+
+      const result = prev.map((item) => byId.get(item.i) ?? item);
+
+      for (const item of nextLayout) {
+        if (!prev.some((existing) => existing.i === item.i)) {
+          result.push({ ...item, y: item.y + baseY });
+        }
+      }
+
+      return result;
+    });
+  }
+
+  function renderWidgetGrid(widgets: WidgetDef[]) {
+    if (widgets.length === 0) {
+      return null;
+    }
+
+    const rawLayouts = widgets.map((widget) => getWidgetLayout(widget));
+    const minY = rawLayouts.reduce((min, item) => Math.min(min, item.y), Number.POSITIVE_INFINITY);
+    const baseY = Number.isFinite(minY) ? minY : 0;
+
+    const normalizedLayouts = rawLayouts.map((item) => ({
+      ...item,
+      y: item.y - baseY,
+    }));
+
+    return (
+      <ResponsiveGridLayout
+        className="layout"
+        layouts={{ lg: normalizedLayouts }}
+        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+        cols={{
+          lg: spec.layout.columns,
+          md: spec.layout.columns,
+          sm: spec.layout.columns,
+          xs: spec.layout.columns,
+          xxs: spec.layout.columns,
+        }}
+        rowHeight={44}
+        margin={[16, 16]}
+        containerPadding={[0, 0]}
+        onLayoutChange={(next) => updateSectionLayout(next as LayoutItem[], baseY)}
+        draggableHandle=".drag-handle"
+      >
+        {widgets.map((widget) => {
+          const widgetLayout = normalizedLayouts.find((item) => item.i === widget.id) ?? getDefaultLayout(widget.id);
+          const entitySectionId = widget.type === "table" && widget.entity ? `section-${widget.entity}` : undefined;
+
+          return (
+            <div key={widget.id} data-grid={widgetLayout} className="relative h-full overflow-hidden" id={entitySectionId}>
+              <div className="drag-handle absolute right-2 top-2 z-10 cursor-move rounded-md p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-500 dark:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-400 transition-colors">
+                <GripVertical size={13} />
+              </div>
+              <WidgetRenderer
+                projectId={projectId}
+                widget={widget}
+                spec={spec}
+                records={records}
+                refreshKey={refreshKey}
+                onRefresh={refreshAll}
+              />
             </div>
-            <WidgetRenderer
-              projectId={projectId}
-              widget={widget}
-              spec={spec}
-              records={records}
-              refreshKey={refreshKey}
-              onRefresh={refreshAll}
-            />
-          </div>
-        );
-      })}
-    </ResponsiveGridLayout>
+          );
+        })}
+      </ResponsiveGridLayout>
+    );
+  }
+
+  return (
+    <div className="space-y-8 p-6">
+      <section id="dashboard-section" className="space-y-2">
+        <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Dashboard</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Comprehensive analytics and marketplace insights</p>
+      </section>
+
+      {kpiWidgets.length > 0 ? (
+        <section id="kpi-section" className="space-y-3">
+          <h3 className="text-xl font-medium text-slate-900 dark:text-slate-100">KPI Metrics</h3>
+          {renderWidgetGrid(kpiWidgets)}
+        </section>
+      ) : null}
+
+      {chartWidgets.length > 0 ? (
+        <section id="charts-section" className="space-y-3">
+          <h3 className="text-xl font-medium text-slate-900 dark:text-slate-100">Sales Trends</h3>
+          {renderWidgetGrid(chartWidgets)}
+        </section>
+      ) : null}
+
+      {tableWidgets.length > 0 ? (
+        <section id="tables-section" className="space-y-3">
+          <h3 className="text-xl font-medium text-slate-900 dark:text-slate-100">Performance Metrics</h3>
+          {renderWidgetGrid(tableWidgets)}
+        </section>
+      ) : null}
+
+      {!hasAnyWidgets ? (
+        <section className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+          This dashboard has no widgets yet.
+        </section>
+      ) : null}
+    </div>
   );
 }

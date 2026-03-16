@@ -11,8 +11,9 @@ interface SuggestionItem {
 
 interface AISuggestionsProps {
   projectId: string;
-  spec: DashboardSpec;
-  onSpecUpdated: (next: DashboardSpec) => void;
+  spec?: DashboardSpec;
+  onSpecUpdated?: (next: DashboardSpec) => void;
+  onApplied?: () => void;
 }
 
 function addLayoutItem(spec: DashboardSpec, widgetId: string, w = 6, h = 4) {
@@ -105,13 +106,26 @@ function applySuggestionToSpec(spec: DashboardSpec, rawSuggestion: string): Dash
   return nextSpec;
 }
 
-export function AISuggestions({ projectId, spec, onSpecUpdated }: AISuggestionsProps) {
+export function AISuggestions({ projectId, spec, onSpecUpdated, onApplied }: AISuggestionsProps) {
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [projectSpec, setProjectSpec] = useState<DashboardSpec | null>(spec ?? null);
 
   const hasSuggestions = useMemo(() => suggestions.length > 0, [suggestions.length]);
+
+  const fetchProjectSpec = async () => {
+    const res = await fetch(`/api/projects/${projectId}`, { cache: "no-store" });
+    const json = await res.json();
+    if (!res.ok || !json.success || !json.data?.specJson) {
+      throw new Error("Failed to load project spec");
+    }
+
+    const loaded = json.data.specJson as DashboardSpec;
+    setProjectSpec(loaded);
+    return loaded;
+  };
 
   const loadSuggestions = async () => {
     setLoading(true);
@@ -141,7 +155,8 @@ export function AISuggestions({ projectId, spec, onSpecUpdated }: AISuggestionsP
     setApplying(suggestion);
     setError(null);
     try {
-      const nextSpec = applySuggestionToSpec(spec, suggestion);
+      const baseSpec = projectSpec ?? (await fetchProjectSpec());
+      const nextSpec = applySuggestionToSpec(baseSpec, suggestion);
 
       const res = await fetch(`/api/projects/${projectId}`, {
         method: "PUT",
@@ -155,7 +170,9 @@ export function AISuggestions({ projectId, spec, onSpecUpdated }: AISuggestionsP
         return;
       }
 
-      onSpecUpdated(nextSpec);
+      setProjectSpec(nextSpec);
+      onSpecUpdated?.(nextSpec);
+      onApplied?.();
       setSuggestions((prev) => prev.filter((item) => item.suggestion !== suggestion));
     } catch {
       setError("Failed to apply suggestion");
@@ -165,7 +182,7 @@ export function AISuggestions({ projectId, spec, onSpecUpdated }: AISuggestionsP
   };
 
   return (
-    <Card>
+    <Card id="ai-suggestions">
       <CardHeader>
         <CardTitle>AI Suggestions</CardTitle>
       </CardHeader>
@@ -199,3 +216,4 @@ export function AISuggestions({ projectId, spec, onSpecUpdated }: AISuggestionsP
     </Card>
   );
 }
+

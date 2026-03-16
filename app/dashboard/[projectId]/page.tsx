@@ -3,6 +3,7 @@ import { getCurrentUserId } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/client";
 import { validateSpec } from "@/lib/validators/specValidator";
 import { DashboardWorkspace } from "@/components/dashboard/DashboardWorkspace";
+import { DashboardShell } from "@/components/generated-dashboard/DashboardShell";
 
 interface Params {
   params: Promise<{ projectId: string }>;
@@ -24,12 +25,12 @@ export default async function ProjectDashboardPage({ params }: Params) {
   const spec = validateSpec(project.specJson);
 
   return (
-    <main className="mx-auto max-w-7xl p-6 space-y-4">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">{project.name}</h1>
-        <p className="text-sm text-slate-500">Spec-driven dashboard with draggable widgets</p>
-      </div>
+    <DashboardShell
+      spec={spec}
+      projectId={project.id}
+      projectName={project.name}
+    >
       <DashboardWorkspace projectId={project.id} initialSpec={spec} />
-    </main>
+    </DashboardShell>
   );
 }

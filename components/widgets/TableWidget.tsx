@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { EntityDef } from "@/types/spec";
+import { AnalyticsCard } from "@/components/widgets/AnalyticsCard";
 
 interface TableWidgetProps {
   projectId: string;
