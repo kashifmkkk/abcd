@@ -54,7 +54,7 @@ export function useDashboardData(projectId: string, lastUploadTimestamp?: string
     } finally {
       setLoading(false);
     }
-  }, [projectId, lastUploadTimestamp]);
+  }, [projectId]);
 
   useEffect(() => {
     let cancelled = false;

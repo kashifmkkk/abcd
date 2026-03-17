@@ -106,7 +106,7 @@ export function TableWidget({ projectId, entity, records, onRefresh }: TableWidg
             {records.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={entity.fields.length + 1} className="text-center text-slate-500">
-                  No records yet
+                  No data available for current filters.
                 </TableCell>
               </TableRow>
             ) : null}

@@ -52,7 +52,7 @@ const MetricDefSchema = z
 
 // ─── Widget ───────────────────────────────────────────────────────────────────
 
-const ChartTypeSchema = z.enum(["bar", "line", "pie"]);
+const ChartTypeSchema = z.enum(["bar", "line", "pie", "area"]);
 const WidgetTypeSchema = z.enum(["kpi", "chart", "table"]);
 
 const WidgetDefSchema = z.object({
@@ -65,6 +65,13 @@ const WidgetDefSchema = z.object({
   metrics: z.array(z.string()).optional(),
   entity: z.string().optional(),
   description: z.string().optional(),
+  config: z.object({
+    xAxis: z.string().optional(),
+    yAxis: z.string().optional(),
+    aggregation: MetricOperationSchema.optional(),
+    groupBy: z.string().optional(),
+    settings: z.record(z.string(), z.unknown()).optional(),
+  }).optional(),
 });
 
 // ─── Layout ───────────────────────────────────────────────────────────────────

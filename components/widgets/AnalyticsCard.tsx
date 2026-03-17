@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 interface AnalyticsCardProps {
   title: string;
@@ -6,6 +7,7 @@ interface AnalyticsCardProps {
   headerAction?: ReactNode;
   /** Section anchor id — enables sidebar scroll-to */
   id?: string;
+  className?: string;
   children: ReactNode;
 }
 
@@ -13,11 +15,14 @@ interface AnalyticsCardProps {
  * Wrapper card used for charts, tables, and analytics sections inside
  * generated dashboards. Provides a consistent header + body layout.
  */
-export function AnalyticsCard({ title, description, headerAction, id, children }: AnalyticsCardProps) {
+export function AnalyticsCard({ title, description, headerAction, id, className, children }: AnalyticsCardProps) {
   return (
     <div
       id={id}
-      className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+      className={cn(
+        "flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900",
+        className
+      )}
     >
       {/* Card header */}
       <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800/60">

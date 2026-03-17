@@ -43,12 +43,20 @@ export interface MetricDef {
 }
 
 /** Supported chart types */
-export type ChartType = "bar" | "line" | "pie";
+export type ChartType = "bar" | "line" | "pie" | "area";
 
 /** Supported widget types */
 export type WidgetType = "kpi" | "chart" | "table";
 
 /** A widget definition that renders on the dashboard */
+export interface WidgetConfigDef {
+  xAxis?: string;
+  yAxis?: string;
+  aggregation?: MetricOperation;
+  groupBy?: string;
+  settings?: Record<string, unknown>;
+}
+
 export interface WidgetDef {
   id: string;
   type: WidgetType;
@@ -63,6 +71,8 @@ export interface WidgetDef {
   entity?: string;
   /** Optional description */
   description?: string;
+  /** User-configurable widget settings */
+  config?: WidgetConfigDef;
 }
 
 /** A single layout item compatible with react-grid-layout */

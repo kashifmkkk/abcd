@@ -1,12 +1,12 @@
 /**
- * Next.js middleware – protects all dashboard routes.
+ * Next.js proxy handler – protects dashboard and API routes.
  * Unauthenticated requests are redirected to /login.
  */
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-export default async function middleware(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const isLoggedIn = Boolean(token);
   const isOnDashboard = req.nextUrl.pathname.startsWith("/dashboard");

@@ -5,6 +5,8 @@ import { validateSpec } from "@/lib/validators/specValidator";
 import { DashboardWorkspace } from "@/components/dashboard/DashboardWorkspace";
 import { DashboardShell } from "@/components/generated-dashboard/DashboardShell";
 
+export const runtime = "nodejs";
+
 interface Params {
   params: Promise<{ projectId: string }>;
 }

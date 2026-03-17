@@ -1,11 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Responsive, WidthProvider, type LayoutItem } from "react-grid-layout/legacy";
-import type { DashboardSpec, WidgetDef } from "@/types/spec";
+import {
+  Copy,
+  Edit3,
+  GripVertical,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
+import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
+import { WidgetSettingsSheet } from "@/components/dashboard/WidgetSettingsSheet";
 import { WidgetRenderer } from "@/components/dashboard/WidgetRenderer";
-import { GripVertical } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { appendDashboardFilters } from "@/lib/dashboard/filters";
+import type { DashboardCustomizationState, DashboardFilters, DashboardWidgetModel, WidgetVisualization } from "@/types/dashboard";
+import type { DashboardSpec } from "@/types/spec";
 
 interface DashboardRendererProps {
   projectId: string;
@@ -15,21 +28,53 @@ interface DashboardRendererProps {
 type EntityRecordsMap = Record<string, Array<{ id: string; data: Record<string, unknown> }>>;
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-function getDefaultLayout(widgetId: string): LayoutItem {
-  return { i: widgetId, x: 0, y: 0, w: 6, h: 4 };
+function getDefaultLayout(widgetId: string, index = 0): LayoutItem {
+  return { i: widgetId, x: (index * 6) % 12, y: Math.floor(index / 2) * 4, w: 6, h: 4 };
+}
+
+function toVisualization(widget: DashboardWidgetModel): WidgetVisualization {
+  if (widget.type === "kpi") return "metric";
+  if (widget.type === "table") return "table";
+  return widget.chartType ?? "bar";
+}
+
+function applyVisualization(widget: DashboardWidgetModel, visualization: WidgetVisualization): DashboardWidgetModel {
+  if (visualization === "metric") {
+    return { ...widget, type: "kpi", chartType: undefined };
+  }
+
+  if (visualization === "table") {
+    return { ...widget, type: "table", chartType: undefined };
+  }
+
+  return { ...widget, type: "chart", chartType: visualization };
 }
 
 export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
   const searchParams = useSearchParams();
   const lastUploadTimestamp = searchParams.get("uploadedAt") ?? "";
   const [records, setRecords] = useState<EntityRecordsMap>({});
+  const [widgets, setWidgets] = useState<DashboardWidgetModel[]>([]);
   const [layout, setLayout] = useState<LayoutItem[]>(spec.layout.items as unknown as LayoutItem[]);
+  const [filters, setFilters] = useState<DashboardFilters>({});
+  const [filterOptions, setFilterOptions] = useState<DashboardCustomizationState["filterOptions"]>({
+    categories: [],
+    regions: [],
+    statuses: [],
+  });
   const [refreshKey, setRefreshKey] = useState(0);
-  const hasMountedRef = useRef(false);
+  const [editingWidgetId, setEditingWidgetId] = useState<string | null>(null);
+  const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   const fetchEntity = useCallback(
-    async (entityName: string) => {
-      const res = await fetch(`/api/entities/${entityName}?projectId=${projectId}`, {
+    async (entityName: string, activeFilters: DashboardFilters = filters) => {
+      const params = new URLSearchParams({ projectId });
+      appendDashboardFilters(params, activeFilters);
+
+      const res = await fetch(`/api/entities/${entityName}?${params.toString()}`, {
         cache: "no-store",
       });
       const json = await res.json();
@@ -37,61 +82,45 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
         setRecords((prev) => ({ ...prev, [entityName]: json.data }));
       }
     },
-    [projectId]
+    [filters, projectId]
   );
 
-  const refreshDashboardSnapshot = useCallback(async () => {
-    await fetch(`/api/dashboard/${projectId}`, { cache: "no-store" });
+  const loadDashboardState = useCallback(async () => {
+    const params = new URLSearchParams();
+    appendDashboardFilters(params, filters);
+    const response = await fetch(`/api/dashboard/${projectId}?${params.toString()}`, { cache: "no-store" });
+    const json = (await response.json()) as {
+      success?: boolean;
+      data?: DashboardCustomizationState;
+    };
+
+    if (response.ok && json.success && json.data) {
+      setWidgets(json.data.widgets);
+      setLayout(json.data.layout.items as unknown as LayoutItem[]);
+      setFilterOptions(json.data.filterOptions);
+    }
+
     setRefreshKey((prev) => prev + 1);
-  }, [projectId]);
+    setIsBootstrapping(false);
+  }, [filters, projectId]);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all(spec.entities.map((entity) => fetchEntity(entity.name)));
-    await refreshDashboardSnapshot();
-  }, [fetchEntity, refreshDashboardSnapshot, spec.entities]);
+    await Promise.all(spec.entities.map((entity) => fetchEntity(entity.name, filters)));
+    await loadDashboardState();
+  }, [fetchEntity, filters, loadDashboardState, spec.entities]);
 
   useEffect(() => {
-    void Promise.all(spec.entities.map((entity) => fetchEntity(entity.name)));
-  }, [fetchEntity, spec.entities]);
+    void refreshAll();
+  }, [refreshAll]);
 
   useEffect(() => {
     if (!lastUploadTimestamp) return;
     void refreshAll();
   }, [lastUploadTimestamp, refreshAll]);
 
-  useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      return;
-    }
-
-    const timeout = setTimeout(async () => {
-      const layoutPayload = {
-        columns: spec.layout.columns,
-        items: layout.map((item) => ({
-          i: item.i,
-          x: item.x,
-          y: item.y,
-          w: item.w,
-          h: item.h,
-          ...(item.minW ? { minW: item.minW } : {}),
-          ...(item.minH ? { minH: item.minH } : {}),
-        })),
-      };
-
-      await fetch(`/api/layout/${projectId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ layout: layoutPayload }),
-      });
-    }, 350);
-
-    return () => clearTimeout(timeout);
-  }, [layout, projectId, spec.layout.columns]);
-
   const sortedWidgets = useMemo(() => {
     const index = new Map(layout.map((item, position) => [item.i, { ...item, position }]));
-    return [...spec.widgets].sort((a, b) => {
+    return [...widgets].sort((a, b) => {
       const aLayout = index.get(a.id);
       const bLayout = index.get(b.id);
 
@@ -103,128 +132,289 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
       if (aLayout.x !== bLayout.x) return aLayout.x - bLayout.x;
       return aLayout.position - bLayout.position;
     });
-  }, [layout, spec.widgets]);
-
-  const kpiWidgets = useMemo(() => sortedWidgets.filter((widget) => widget.type === "kpi"), [sortedWidgets]);
-  const chartWidgets = useMemo(() => sortedWidgets.filter((widget) => widget.type === "chart"), [sortedWidgets]);
-  const tableWidgets = useMemo(() => sortedWidgets.filter((widget) => widget.type === "table"), [sortedWidgets]);
+  }, [layout, widgets]);
 
   const hasAnyWidgets = sortedWidgets.length > 0;
 
   const getWidgetLayout = useCallback(
-    (widget: WidgetDef) => layout.find((item) => item.i === widget.id) ?? getDefaultLayout(widget.id),
-    [layout]
+    (widget: DashboardWidgetModel) => {
+      const index = sortedWidgets.findIndex((item) => item.id === widget.id);
+      return layout.find((item) => item.i === widget.id) ?? getDefaultLayout(widget.id, index);
+    },
+    [layout, sortedWidgets]
   );
 
-  function updateSectionLayout(nextLayout: LayoutItem[], baseY: number) {
-    setLayout((prev) => {
-      const byId = new Map(prev.map((item) => [item.i, item]));
+  const editingWidget = useMemo(
+    () => sortedWidgets.find((widget) => widget.id === editingWidgetId) ?? null,
+    [editingWidgetId, sortedWidgets]
+  );
 
-      for (const item of nextLayout) {
-        byId.set(item.i, { ...item, y: item.y + baseY });
-      }
+  const persistDashboard = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      await fetch(`/api/dashboard/${projectId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          layout: {
+            columns: spec.layout.columns,
+            items: layout.map((item) => ({
+              i: item.i,
+              x: item.x,
+              y: item.y,
+              w: item.w,
+              h: item.h,
+              ...(item.minW ? { minW: item.minW } : {}),
+              ...(item.minH ? { minH: item.minH } : {}),
+            })),
+          },
+          widgets: sortedWidgets,
+        }),
+      });
+      setIsDirty(false);
+      await loadDashboardState();
+    } finally {
+      setIsSaving(false);
+    }
+  }, [layout, loadDashboardState, projectId, sortedWidgets, spec.layout.columns]);
 
-      const result = prev.map((item) => byId.get(item.i) ?? item);
-
-      for (const item of nextLayout) {
-        if (!prev.some((existing) => existing.i === item.i)) {
-          result.push({ ...item, y: item.y + baseY });
-        }
-      }
-
-      return result;
-    });
+  function updateLayout(nextLayout: LayoutItem[]) {
+    setLayout(nextLayout);
+    setIsDirty(true);
   }
 
-  function renderWidgetGrid(widgets: WidgetDef[]) {
-    if (widgets.length === 0) {
-      return null;
-    }
+  function updateWidget(widgetId: string, updater: (widget: DashboardWidgetModel) => DashboardWidgetModel) {
+    setWidgets((prev) => prev.map((widget) => (widget.id === widgetId ? updater(widget) : widget)));
+    setIsDirty(true);
+  }
 
-    const rawLayouts = widgets.map((widget) => getWidgetLayout(widget));
-    const minY = rawLayouts.reduce((min, item) => Math.min(min, item.y), Number.POSITIVE_INFINITY);
-    const baseY = Number.isFinite(minY) ? minY : 0;
+  function deleteWidget(widgetId: string) {
+    setWidgets((prev) => prev.filter((widget) => widget.id !== widgetId));
+    setLayout((prev) => prev.filter((item) => item.i !== widgetId));
+    setIsDirty(true);
+  }
 
-    const normalizedLayouts = rawLayouts.map((item) => ({
-      ...item,
-      y: item.y - baseY,
-    }));
+  function duplicateWidget(widgetId: string) {
+    const sourceWidget = sortedWidgets.find((widget) => widget.id === widgetId);
+    const sourceLayout = layout.find((item) => item.i === widgetId);
+    if (!sourceWidget) return;
 
-    return (
-      <ResponsiveGridLayout
-        className="layout"
-        layouts={{ lg: normalizedLayouts }}
-        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-        cols={{
-          lg: spec.layout.columns,
-          md: spec.layout.columns,
-          sm: spec.layout.columns,
-          xs: spec.layout.columns,
-          xxs: spec.layout.columns,
-        }}
-        rowHeight={44}
-        margin={[16, 16]}
-        containerPadding={[0, 0]}
-        onLayoutChange={(next) => updateSectionLayout(next as LayoutItem[], baseY)}
-        draggableHandle=".drag-handle"
-      >
-        {widgets.map((widget) => {
-          const widgetLayout = normalizedLayouts.find((item) => item.i === widget.id) ?? getDefaultLayout(widget.id);
-          const entitySectionId = widget.type === "table" && widget.entity ? `section-${widget.entity}` : undefined;
+    const duplicateId = `widget_${crypto.randomUUID().slice(0, 8)}`;
+    const duplicateWidgetItem: DashboardWidgetModel = {
+      ...sourceWidget,
+      id: duplicateId,
+      title: `${sourceWidget.title} copy`,
+    };
 
-          return (
-            <div key={widget.id} data-grid={widgetLayout} className="relative h-full overflow-hidden" id={entitySectionId}>
-              <div className="drag-handle absolute right-2 top-2 z-10 cursor-move rounded-md p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-500 dark:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-400 transition-colors">
-                <GripVertical size={13} />
-              </div>
-              <WidgetRenderer
-                projectId={projectId}
-                widget={widget}
-                spec={spec}
-                records={records}
-                refreshKey={refreshKey}
-                onRefresh={refreshAll}
-              />
-            </div>
-          );
-        })}
-      </ResponsiveGridLayout>
-    );
+    const duplicateLayoutItem = sourceLayout
+      ? {
+          ...sourceLayout,
+          i: duplicateId,
+          x: (sourceLayout.x + 1) % spec.layout.columns,
+          y: sourceLayout.y + 1,
+        }
+      : getDefaultLayout(duplicateId, sortedWidgets.length);
+
+    setWidgets((prev) => [...prev, duplicateWidgetItem]);
+    setLayout((prev) => [...prev, duplicateLayoutItem]);
+    setIsDirty(true);
   }
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="space-y-6 p-6">
       <section id="dashboard-section" className="space-y-2">
-        <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Dashboard</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">Comprehensive analytics and marketplace insights</p>
+        <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Customizable dashboard</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Drag, resize, filter, and save widgets without losing the AI-generated starting point.
+        </p>
       </section>
 
-      {kpiWidgets.length > 0 ? (
-        <section id="kpi-section" className="space-y-3">
-          <h3 className="text-xl font-medium text-slate-900 dark:text-slate-100">KPI Metrics</h3>
-          {renderWidgetGrid(kpiWidgets)}
-        </section>
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Date from</span>
+              <Input type="date" value={filters.dateFrom ?? ""} onChange={(event) => setFilters((prev) => ({ ...prev, dateFrom: event.target.value || undefined }))} />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Date to</span>
+              <Input type="date" value={filters.dateTo ?? ""} onChange={(event) => setFilters((prev) => ({ ...prev, dateTo: event.target.value || undefined }))} />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Category</span>
+              <select
+                value={filters.category ?? ""}
+                onChange={(event) => setFilters((prev) => ({ ...prev, category: event.target.value || undefined }))}
+                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              >
+                <option value="">All categories</option>
+                {filterOptions.categories.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Region</span>
+              <select
+                value={filters.region ?? ""}
+                onChange={(event) => setFilters((prev) => ({ ...prev, region: event.target.value || undefined }))}
+                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              >
+                <option value="">All regions</option>
+                {filterOptions.regions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Status</span>
+              <select
+                value={filters.status ?? ""}
+                onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value || undefined }))}
+                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              >
+                <option value="">All statuses</option>
+                {filterOptions.statuses.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setFilters({})}>Reset filters</Button>
+            <Button onClick={() => void persistDashboard()} disabled={!isDirty || isSaving}>
+              <Save size={14} />
+              {isSaving ? "Saving..." : isDirty ? "Save dashboard" : "Saved"}
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {hasAnyWidgets ? (
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={{ lg: sortedWidgets.map((widget) => getWidgetLayout(widget)) }}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
+          rowHeight={44}
+          margin={[16, 16]}
+          containerPadding={[0, 0]}
+          isResizable
+          draggableHandle=".drag-handle"
+          onLayoutChange={(next) => updateLayout(next as LayoutItem[])}
+        >
+          {sortedWidgets.map((widget) => {
+            const widgetLayout = getWidgetLayout(widget);
+            const visualization = toVisualization(widget);
+
+            return (
+              <div key={widget.id} data-grid={widgetLayout} className="h-full">
+                <div className="flex h-full flex-col rounded-[1.4rem] border border-slate-200/80 bg-white/75 p-2 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/60">
+                  <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/85 px-2 py-1.5 dark:border-slate-800 dark:bg-slate-900/85">
+                    <button
+                      type="button"
+                      className="drag-handle flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                      title="Drag widget"
+                    >
+                      <GripVertical size={14} />
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingWidgetId(widget.id)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                        title="Edit widget"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => duplicateWidget(widget.id)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                        title="Duplicate widget"
+                      >
+                        <Copy size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteWidget(widget.id)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+                        title="Delete widget"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                      <select
+                        value={visualization}
+                        onChange={(event) => updateWidget(widget.id, (current) => applyVisualization(current, event.target.value as WidgetVisualization))}
+                        className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                        title="Change chart type"
+                      >
+                        <option value="line">Line</option>
+                        <option value="bar">Bar</option>
+                        <option value="area">Area</option>
+                        <option value="pie">Pie</option>
+                        <option value="table">Table</option>
+                        <option value="metric">Metric</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="min-h-0 flex-1">
+                    <WidgetRenderer
+                      projectId={projectId}
+                      widget={widget}
+                      spec={spec}
+                      records={records}
+                      filters={filters}
+                      refreshKey={refreshKey}
+                      onRefresh={refreshAll}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </ResponsiveGridLayout>
       ) : null}
 
-      {chartWidgets.length > 0 ? (
-        <section id="charts-section" className="space-y-3">
-          <h3 className="text-xl font-medium text-slate-900 dark:text-slate-100">Sales Trends</h3>
-          {renderWidgetGrid(chartWidgets)}
-        </section>
-      ) : null}
-
-      {tableWidgets.length > 0 ? (
-        <section id="tables-section" className="space-y-3">
-          <h3 className="text-xl font-medium text-slate-900 dark:text-slate-100">Performance Metrics</h3>
-          {renderWidgetGrid(tableWidgets)}
-        </section>
-      ) : null}
-
-      {!hasAnyWidgets ? (
+      {!hasAnyWidgets && !isBootstrapping ? (
         <section className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
           This dashboard has no widgets yet.
         </section>
       ) : null}
+
+      <AddWidgetDialog
+        open={isAddWidgetOpen}
+        entities={spec.entities}
+        onOpenChange={setIsAddWidgetOpen}
+        onCreate={(widget) => {
+          setWidgets((prev) => [...prev, widget]);
+          setLayout((prev) => [...prev, getDefaultLayout(widget.id, prev.length)]);
+          setIsDirty(true);
+        }}
+      />
+
+      <WidgetSettingsSheet
+        open={Boolean(editingWidget)}
+        widget={editingWidget}
+        entities={spec.entities}
+        onOpenChange={(open) => {
+          if (!open) setEditingWidgetId(null);
+        }}
+        onSave={(widget) => {
+          updateWidget(widget.id, () => widget);
+          setEditingWidgetId(null);
+        }}
+      />
+
+      <div className="fixed bottom-8 right-8 z-30">
+        <Button size="lg" className="rounded-full px-5 shadow-lg" onClick={() => setIsAddWidgetOpen(true)}>
+          <Plus size={16} />
+          Add Widget
+        </Button>
+      </div>
     </div>
   );
 }

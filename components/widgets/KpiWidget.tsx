@@ -2,39 +2,83 @@
 
 import { useEffect, useState } from "react";
 import { TrendingUp } from "lucide-react";
+import { appendDashboardFilters } from "@/lib/dashboard/filters";
+import type { DashboardFilters } from "@/types/dashboard";
+import type { MetricOperation } from "@/types/spec";
 
 interface KpiWidgetProps {
   projectId: string;
   title: string;
-  metric: string;
+  metric?: string;
+  entity?: string;
+  field?: string;
+  aggregation?: MetricOperation;
+  groupBy?: string;
+  filters?: DashboardFilters;
   refreshKey?: number;
 }
 
-export function KpiWidget({ projectId, title, metric, refreshKey = 0 }: KpiWidgetProps) {
+export function KpiWidget({
+  projectId,
+  title,
+  metric,
+  entity,
+  field,
+  aggregation,
+  groupBy,
+  filters = {},
+  refreshKey = 0,
+}: KpiWidgetProps) {
   const [value, setValue] = useState<number | string | null>(null);
   const [prevValue, setPrevValue] = useState<number | string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasData, setHasData] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
 
     async function load() {
-      const res = await fetch(`/api/metrics/${projectId}?metric=${encodeURIComponent(metric)}`, {
+      queueMicrotask(() => {
+        if (!cancelled) {
+          setLoading(true);
+        }
+      });
+
+      const params = new URLSearchParams();
+      if (metric) {
+        params.set("metric", metric);
+      } else if (entity && aggregation) {
+        params.set("entity", entity);
+        params.set("aggregation", aggregation);
+        if (field) params.set("field", field);
+        if (groupBy) params.set("groupBy", groupBy);
+      } else {
+        if (!cancelled) {
+          setValue(null);
+          setHasData(false);
+          setLoading(false);
+        }
+        return;
+      }
+
+      appendDashboardFilters(params, filters);
+
+      const res = await fetch(`/api/metrics/${projectId}?${params.toString()}`, {
         cache: "no-store",
       });
       if (!res.ok) { setLoading(false); return; }
-      const json = (await res.json()) as { value?: number | string };
+      const json = (await res.json()) as { value?: number | string; hasData?: boolean };
       if (!cancelled) {
         setPrevValue((p) => p);
         setValue(json.value ?? 0);
+        setHasData(json.hasData ?? true);
         setLoading(false);
       }
     }
 
     void load();
     return () => { cancelled = true; };
-  }, [projectId, metric, refreshKey]);
+  }, [projectId, metric, entity, field, aggregation, groupBy, filters, refreshKey]);
 
   // Derive trend direction vs previous value
   const numVal = typeof value === "number" ? value : Number(value);
@@ -54,6 +98,10 @@ export function KpiWidget({ projectId, title, metric, refreshKey = 0 }: KpiWidge
       <div className="mt-3 flex-1">
         {loading ? (
           <div className="h-9 w-24 animate-pulse rounded-md bg-slate-100 dark:bg-slate-800" />
+        ) : !hasData ? (
+          <p className="max-w-[16rem] text-sm text-slate-500 dark:text-slate-400">
+            No data available for current filters.
+          </p>
         ) : (
           <p className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
             {value ?? "—"}
@@ -74,7 +122,7 @@ export function KpiWidget({ projectId, title, metric, refreshKey = 0 }: KpiWidge
         </div>
       ) : (
         <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-          {metric}
+          {metric ?? `${aggregation ?? "count"} ${field ?? "records"}`}
         </p>
       )}
     </div>

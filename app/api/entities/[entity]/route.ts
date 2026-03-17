@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth/session";
+import { applyDashboardFilters, parseDashboardFilters } from "@/lib/dashboard/filters";
 import { prisma } from "@/lib/db/client";
 import { validateSpec } from "@/lib/validators/specValidator";
-import { createRecord, getRecords } from "@/lib/crud-engine/crudEngine";
+import { createRecord } from "@/lib/crud-engine/crudEngine";
 import { getEntity } from "@/lib/spec-engine/entityRegistry";
 import { validateEntityPayload } from "@/lib/crud-engine/entityValidator";
 import { apiError, apiOk } from "@/lib/api/errors";
@@ -34,7 +34,19 @@ export async function GET(req: Request, { params }: Params) {
   });
   if (!project) return apiError(404, "NOT_FOUND", "Project not found");
 
-  const records = await getRecords(project.id, entity);
+  const filters = parseDashboardFilters(searchParams);
+  const rows = await prisma.dashboardData.findMany({
+    where: { projectId: project.id, entity },
+    orderBy: { createdAt: "desc" },
+  });
+  const records = applyDashboardFilters(
+    rows.map((row) => ({
+      ...row,
+      data: row.data as Record<string, unknown>,
+    })),
+    filters
+  );
+
   return apiOk(records);
 }
 

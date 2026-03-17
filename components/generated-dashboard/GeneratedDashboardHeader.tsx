@@ -8,7 +8,6 @@ import Link from "next/link";
 interface GeneratedDashboardHeaderProps {
   title: string;
   subtitle?: string;
-  projectId: string;
   onRefresh?: () => void;
   onAiToggle?: () => void;
   showAi?: boolean;
@@ -17,7 +16,6 @@ interface GeneratedDashboardHeaderProps {
 export function GeneratedDashboardHeader({
   title,
   subtitle,
-  projectId,
   onRefresh,
   onAiToggle,
   showAi = false,

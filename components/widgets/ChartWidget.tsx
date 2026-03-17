@@ -20,7 +20,9 @@ import {
   Legend,
 } from "recharts";
 import { AnalyticsCard } from "@/components/widgets/AnalyticsCard";
-import { scrollToSection } from "@/lib/utils/scrollToSection";
+import { appendDashboardFilters } from "@/lib/dashboard/filters";
+import type { DashboardFilters } from "@/types/dashboard";
+import type { MetricOperation } from "@/types/spec";
 
 type ChartType = "bar" | "line" | "pie" | "area";
 
@@ -31,7 +33,10 @@ interface ChartWidgetProps {
   metric?: string;
   entity?: string;
   xKey?: string;
-  fields?: string[];
+  field?: string;
+  aggregation?: MetricOperation;
+  groupBy?: string;
+  filters?: DashboardFilters;
   refreshKey?: number;
 }
 
@@ -55,6 +60,7 @@ const tooltipStyle = {
 
 const tickStyle = { fontSize: 11, fill: "#94a3b8" };
 const gridStyle = { strokeDasharray: "3 3", stroke: "#f1f5f9" };
+const VALUE_FIELDS = ["value"];
 
 export function ChartWidget({
   projectId,
@@ -63,53 +69,73 @@ export function ChartWidget({
   metric,
   entity,
   xKey = "label",
-  fields = ["value"],
+  field,
+  aggregation,
+  groupBy,
+  filters = {},
   refreshKey = 0,
 }: ChartWidgetProps) {
   const [data, setData] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasData, setHasData] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-
-    async function loadFromMetric() {
-      if (!metric) return false;
-      const res = await fetch(`/api/metrics/${projectId}?metric=${encodeURIComponent(metric)}`, {
-        cache: "no-store",
-      });
-      if (!res.ok) return false;
-      const json = (await res.json()) as { series?: Array<{ label: string; value: number }> };
-      if (!cancelled) {
-        setData((json.series ?? []).map((p) => ({ label: p.label, value: p.value })));
-        setLoading(false);
-      }
-      return true;
-    }
-
-    async function loadFromEntityFields() {
-      if (!entity || !fields.length || !xKey) return;
-      const params = new URLSearchParams({ projectId, entity, metricX: xKey, fields: fields.join(",") });
-      const res = await fetch(`/api/metrics?${params.toString()}`, { cache: "no-store" });
-      if (!res.ok) return;
-      const json = (await res.json()) as { success?: boolean; data?: Record<string, unknown>[] };
-      if (!cancelled && json.success && Array.isArray(json.data)) {
-        setData(json.data);
-        setLoading(false);
-      }
-    }
 
     async function load() {
-      const done = await loadFromMetric();
-      if (!done) await loadFromEntityFields();
+      queueMicrotask(() => {
+        if (!cancelled) {
+          setLoading(true);
+        }
+      });
+
+      const params = new URLSearchParams();
+      if (metric) {
+        params.set("metric", metric);
+      } else if (entity && aggregation) {
+        params.set("entity", entity);
+        params.set("aggregation", aggregation);
+        if (field) params.set("field", field);
+        params.set("groupBy", groupBy ?? xKey);
+      } else {
+        if (!cancelled) {
+          setData([]);
+          setHasData(false);
+          setLoading(false);
+        }
+        return;
+      }
+
+      appendDashboardFilters(params, filters);
+      const res = await fetch(`/api/metrics/${projectId}?${params.toString()}`, { cache: "no-store" });
+      if (!res.ok) {
+        if (!cancelled) {
+          setData([]);
+          setHasData(false);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const json = (await res.json()) as {
+        value?: number | string;
+        series?: Array<{ label: string; value: number }>;
+        hasData?: boolean;
+      };
+
+      if (!cancelled) {
+        setData((json.series ?? []).map((point) => ({ label: point.label, value: point.value })));
+        setHasData(json.hasData ?? true);
       if (!cancelled) setLoading(false);
+      }
     }
+
     void load();
     return () => { cancelled = true; };
-  }, [projectId, metric, entity, xKey, fields, refreshKey]);
+  }, [projectId, metric, entity, xKey, field, aggregation, groupBy, filters, refreshKey]);
 
-  const yFields = metric ? ["value"] : fields;
-  const axisKey = metric ? "label" : xKey;
+  const yFields = VALUE_FIELDS;
+  const axisKey = "label";
 
   // For larger datasets, normalize once and memoize to avoid repeated processing in render paths.
   const chartData = useMemo(() => {
@@ -139,20 +165,7 @@ export function ChartWidget({
       <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
         <Database size={16} />
       </div>
-      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No data yet — upload CSV or add records.</p>
-      <button
-        type="button"
-        onClick={() => {
-          if (entity) {
-            scrollToSection(`section-${entity}`);
-            return;
-          }
-          scrollToSection("tables-section");
-        }}
-        className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/40"
-      >
-        Add Data
-      </button>
+      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No data available for current filters.</p>
     </div>
   );
 
@@ -162,7 +175,7 @@ export function ChartWidget({
 
   function renderChart() {
     if (loading) return loadingSkeleton;
-    if (chartData.length === 0) return emptyState;
+    if (!hasData || chartData.length === 0) return emptyState;
 
     if (chartType === "bar") {
       return (

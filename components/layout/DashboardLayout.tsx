@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   LayoutDashboard,
   Package,
@@ -15,11 +15,8 @@ import {
   Bell,
   Settings,
   ChevronRight,
-  Plus,
-  Upload,
 } from "lucide-react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
-import { AISuggestions } from "@/components/dashboard/AISuggestions";
 
 interface SidebarItem {
   label: string;
@@ -49,17 +46,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, isAuthenticated, userEmail }: DashboardLayoutProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
-
-  const dashboardProjectId = useMemo(() => {
-    const match = pathname.match(/^\/dashboard\/([^/]+)$/);
-    return match?.[1] ?? null;
-  }, [pathname]);
 
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
 
@@ -73,7 +60,7 @@ export function DashboardLayout({ children, isAuthenticated, userEmail }: Dashbo
   }
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 ${mounted ? "" : ""}`}>
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div

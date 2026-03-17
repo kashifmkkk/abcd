@@ -21,16 +21,19 @@ function getBreadcrumbs(pathname: string): string[] {
 
 export function DashboardHeader({ userEmail, onMenuToggle }: DashboardHeaderProps) {
   const pathname = usePathname();
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
 
-  // Sync dark mode on mount
-  useEffect(() => {
     const saved = localStorage.getItem("theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = saved === "dark" || (!saved && prefersDark);
-    setDark(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
+    return saved === "dark" || (!saved && prefersDark);
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
 
   function toggleDark() {
     const next = !dark;
@@ -101,10 +104,10 @@ export function DashboardHeader({ userEmail, onMenuToggle }: DashboardHeaderProp
 
         {/* User avatar */}
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-xs font-semibold uppercase text-white shadow-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-indigo-500 to-purple-600 text-xs font-semibold uppercase text-white shadow-sm">
             {(userEmail ?? "U")[0]}
           </div>
-          <span className="hidden text-xs font-medium text-slate-700 dark:text-slate-300 sm:block max-w-[120px] truncate">
+          <span className="hidden max-w-30 truncate text-xs font-medium text-slate-700 dark:text-slate-300 sm:block">
             {userEmail ?? "User"}
           </span>
         </div>

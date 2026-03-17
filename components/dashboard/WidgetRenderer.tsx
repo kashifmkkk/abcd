@@ -1,26 +1,23 @@
 "use client";
 
 import { useMemo } from "react";
-import type { DashboardSpec, EntityDef, WidgetDef } from "@/types/spec";
+import type { DashboardFilters, DashboardWidgetModel } from "@/types/dashboard";
+import type { DashboardSpec } from "@/types/spec";
 import { KpiWidget } from "@/components/widgets/KpiWidget";
 import { ChartWidget } from "@/components/widgets/ChartWidget";
 import { TableWidget } from "@/components/widgets/TableWidget";
 
 interface WidgetRendererProps {
   projectId: string;
-  widget: WidgetDef;
+  widget: DashboardWidgetModel;
   spec: DashboardSpec;
   records: Record<string, Array<{ id: string; data: Record<string, unknown> }>>;
+  filters: DashboardFilters;
   refreshKey: number;
   onRefresh: () => Promise<void>;
 }
 
-function getEntityFromWidget(widget: WidgetDef, entities: EntityDef[]): EntityDef | null {
-  if (!widget.entity) return null;
-  return entities.find((entity) => entity.name === widget.entity) ?? null;
-}
-
-function resolveChartMetric(widget: WidgetDef, spec: DashboardSpec): string | undefined {
+function resolveChartMetric(widget: DashboardWidgetModel, spec: DashboardSpec): string | undefined {
   if (widget.metric && spec.metrics.some((metric) => metric.name === widget.metric)) {
     return widget.metric;
   }
@@ -44,15 +41,23 @@ export function WidgetRenderer({
   widget,
   spec,
   records,
+  filters,
   refreshKey,
   onRefresh,
 }: WidgetRendererProps) {
-  const entity = useMemo(() => getEntityFromWidget(widget, spec.entities), [widget, spec.entities]);
+  const entity = useMemo(
+    () => spec.entities.find((item) => item.name === widget.entity) ?? null,
+    [widget, spec.entities]
+  );
   const metricName = useMemo(() => resolveChartMetric(widget, spec), [widget, spec]);
+  const effectiveEntity = widget.entity ?? entity?.name;
+  const effectiveAggregation = widget.config?.aggregation;
+  const effectiveYAxis = widget.config?.yAxis ?? widget.metrics?.[0];
+  const effectiveGroupBy = widget.config?.groupBy ?? widget.config?.xAxis ?? widget.metricX;
 
   switch (widget.type) {
     case "kpi":
-      if (!widget.metric) {
+      if (!widget.metric && !effectiveEntity) {
         return <div className="text-sm text-slate-500">Missing metric for KPI widget</div>;
       }
 
@@ -61,6 +66,11 @@ export function WidgetRenderer({
           projectId={projectId}
           title={widget.title}
           metric={widget.metric}
+          entity={effectiveEntity}
+          field={effectiveYAxis}
+          aggregation={effectiveAggregation}
+          groupBy={effectiveGroupBy}
+          filters={filters}
           refreshKey={refreshKey}
         />
       );
@@ -72,9 +82,12 @@ export function WidgetRenderer({
           title={widget.title}
           chartType={widget.chartType ?? "bar"}
           metric={metricName}
-          entity={widget.entity}
-          xKey={widget.metricX ?? "name"}
-          fields={widget.metrics ?? []}
+          entity={effectiveEntity}
+          xKey={widget.config?.xAxis ?? widget.metricX ?? "label"}
+          field={effectiveYAxis}
+          aggregation={effectiveAggregation}
+          groupBy={effectiveGroupBy}
+          filters={filters}
           refreshKey={refreshKey}
         />
       );

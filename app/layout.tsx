@@ -6,6 +6,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { prisma } from "@/lib/db/client";
 import "./globals.css";
 
+export const runtime = "nodejs";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

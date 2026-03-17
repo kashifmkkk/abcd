@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth/session";
+import { saveDashboardCustomization } from "@/lib/dashboard/customization";
 import { prisma } from "@/lib/db/client";
 import { validateSpec } from "@/lib/validators/specValidator";
 import { apiError, apiOk } from "@/lib/api/errors";
@@ -63,16 +64,13 @@ export async function PUT(req: Request, { params }: Params) {
     return apiError(422, "BAD_REQUEST", "Layout contains unknown widget IDs");
   }
 
-  const nextSpec = {
-    ...spec,
+  await saveDashboardCustomization(projectId, {
     layout: parsedBody.layout,
-  };
-
-  await prisma.project.update({
-    where: { id: projectId },
-    data: {
-      specJson: nextSpec as unknown as object,
-    },
+    widgets: spec.widgets.map((widget) => ({
+      ...widget,
+      entity: widget.entity,
+      config: widget.config,
+    })),
   });
 
   return apiOk({ saved: true, layout: parsedBody.layout });

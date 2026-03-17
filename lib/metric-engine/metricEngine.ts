@@ -9,7 +9,9 @@
  * For large datasets, replace with a GROUP BY / aggregate query.
  */
 import { prisma } from "@/lib/db/client";
+import { applyDashboardFilters } from "@/lib/dashboard/filters";
 import { validateSpec } from "@/lib/validators/specValidator";
+import type { DashboardFilters } from "@/types/dashboard";
 import type { DashboardSpec, MetricDef } from "@/types/spec";
 import type { MetricResult } from "@/types/api";
 
@@ -90,91 +92,47 @@ function normalizeDateLabel(value: unknown): string {
   return "unknown";
 }
 
-async function getMetricByName(projectId: string, metricName: string, spec?: DashboardSpec): Promise<MetricDef | null> {
-  if (spec) {
-    return spec.metrics.find((m) => m.name === metricName) ?? null;
+function normalizeGroupLabel(value: unknown): string {
+  if (value == null) return "Unknown";
+
+  if (isDateLike(value)) {
+    return normalizeToMonth(value);
   }
 
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { specJson: true },
-  });
-
-  if (!project) return null;
-
-  let parsedSpec: DashboardSpec;
-  try {
-    parsedSpec = validateSpec(project.specJson);
-  } catch {
-    return null;
-  }
-
-  return parsedSpec.metrics.find((m) => m.name === metricName) ?? null;
+  const normalized = String(value).trim();
+  return normalized.length > 0 ? normalized : "Unknown";
 }
 
-// ─── Single metric computation ────────────────────────────────────────────────
-
-/**
- * Compute a single metric for a project.
- * Loads all entity records and performs in-memory aggregation.
- */
-export async function computeMetric(
+async function getFilteredEntityRows(
   projectId: string,
-  metric: MetricDef | string,
-  spec?: DashboardSpec
-): Promise<MetricResult> {
-  const metricDef =
-    typeof metric === "string"
-      ? await getMetricByName(projectId, metric, spec)
-      : metric;
-
-  if (!metricDef) {
-    return {
-      name: typeof metric === "string" ? metric : metric.name,
-      value: 0,
-    };
-  }
-
-  const rows: Array<{ data: unknown }> = await prisma.dashboardData.findMany({
-    where: { projectId, entity: metricDef.entity },
-    select: { data: true },
-  });
-
-  // Extract raw JSON data blobs
-  const records = rows.map((row: { data: unknown }) => row.data as Record<string, unknown>);
-
-  const value = computeMetricFromRecords(metricDef, records);
-
-  return {
-    name: metricDef.name,
-    value: Number.isFinite(value) ? Math.round(value * 100) / 100 : 0,
-  };
-}
-
-export async function computeMetricSeries(
-  projectId: string,
-  metric: MetricDef | string,
-  spec?: DashboardSpec
+  entity: string,
+  filters: DashboardFilters = {}
 ) {
-  const metricDef =
-    typeof metric === "string"
-      ? await getMetricByName(projectId, metric, spec)
-      : metric;
-
-  if (!metricDef) return [];
-
   const rows = await prisma.dashboardData.findMany({
-    where: { projectId, entity: metricDef.entity },
+    where: { projectId, entity },
     select: { data: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });
 
+  return applyDashboardFilters(
+    rows.map((row) => ({
+      data: row.data as Record<string, unknown>,
+      createdAt: row.createdAt,
+    })),
+    filters
+  );
+}
+
+function computeSeriesFromRecords(
+  records: Array<Record<string, unknown>>,
+  metricDef: MetricDef,
+  groupByField?: string
+) {
   const grouped: Record<string, { sum: number; count: number; min: number; max: number }> = {};
 
-  for (const row of rows) {
-    const record = row.data as Record<string, unknown>;
-    const rawDate = record.createdAt ?? record.date ?? row.createdAt;
-    const label = normalizeDateLabel(rawDate);
+  for (const record of records) {
+    const rawLabel = groupByField ? record[groupByField] : record.createdAt ?? record.date;
+    const label = groupByField ? normalizeGroupLabel(rawLabel) : normalizeDateLabel(rawLabel);
 
     if (!grouped[label]) {
       grouped[label] = {
@@ -224,11 +182,91 @@ export async function computeMetricSeries(
       }
 
       return {
-      label,
-      x: label,
-      value: Math.round(value * 100) / 100,
+        label,
+        x: label,
+        value: Math.round(value * 100) / 100,
       };
     });
+}
+
+async function getMetricByName(projectId: string, metricName: string, spec?: DashboardSpec): Promise<MetricDef | null> {
+  if (spec) {
+    return spec.metrics.find((m) => m.name === metricName) ?? null;
+  }
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { specJson: true },
+  });
+
+  if (!project) return null;
+
+  let parsedSpec: DashboardSpec;
+  try {
+    parsedSpec = validateSpec(project.specJson);
+  } catch {
+    return null;
+  }
+
+  return parsedSpec.metrics.find((m) => m.name === metricName) ?? null;
+}
+
+// ─── Single metric computation ────────────────────────────────────────────────
+
+/**
+ * Compute a single metric for a project.
+ * Loads all entity records and performs in-memory aggregation.
+ */
+export async function computeMetric(
+  projectId: string,
+  metric: MetricDef | string,
+  spec?: DashboardSpec,
+  filters: DashboardFilters = {}
+): Promise<MetricResult> {
+  const metricDef =
+    typeof metric === "string"
+      ? await getMetricByName(projectId, metric, spec)
+      : metric;
+
+  if (!metricDef) {
+    return {
+      name: typeof metric === "string" ? metric : metric.name,
+      value: 0,
+    };
+  }
+
+  const rows = await getFilteredEntityRows(projectId, metricDef.entity, filters);
+  const records = rows.map((row) => row.data);
+
+  const value = computeMetricFromRecords(metricDef, records);
+
+  return {
+    name: metricDef.name,
+    value: Number.isFinite(value) ? Math.round(value * 100) / 100 : 0,
+  };
+}
+
+export async function computeMetricSeries(
+  projectId: string,
+  metric: MetricDef | string,
+  spec?: DashboardSpec,
+  filters: DashboardFilters = {},
+  groupByField?: string
+) {
+  const metricDef =
+    typeof metric === "string"
+      ? await getMetricByName(projectId, metric, spec)
+      : metric;
+
+  if (!metricDef) return [];
+
+  const rows = await getFilteredEntityRows(projectId, metricDef.entity, filters);
+  const records = rows.map((row) => ({
+    ...row.data,
+    createdAt: row.createdAt,
+  }));
+
+  return computeSeriesFromRecords(records, metricDef, groupByField);
 }
 
 // ─── Bulk metric computation ──────────────────────────────────────────────────
@@ -239,10 +277,11 @@ export async function computeMetricSeries(
  */
 export async function computeAllMetrics(
   projectId: string,
-  spec: DashboardSpec
+  spec: DashboardSpec,
+  filters: DashboardFilters = {}
 ): Promise<Record<string, MetricResult>> {
   const results = await Promise.all(
-    spec.metrics.map((metric) => computeMetric(projectId, metric))
+    spec.metrics.map((metric) => computeMetric(projectId, metric, undefined, filters))
   );
 
   return Object.fromEntries(results.map((r) => [r.name, r]));
@@ -259,15 +298,11 @@ export async function computeChartData(
   projectId: string,
   entityName: string,
   metricX: string,
-  fields: string[]
+  fields: string[],
+  filters: DashboardFilters = {}
 ): Promise<Record<string, unknown>[]> {
-  const rows: Array<{ data: unknown }> = await prisma.dashboardData.findMany({
-    where: { projectId, entity: entityName },
-    select: { data: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const rawRecords = rows.map((record: { data: unknown }) => record.data as Record<string, unknown>);
+  const rows = await getFilteredEntityRows(projectId, entityName, filters);
+  const rawRecords = rows.map((record) => record.data);
   const dateField = pickDateField(rawRecords, metricX);
 
   if (dateField) {
@@ -307,4 +342,34 @@ export async function computeChartData(
     if (fields.length > 0) point.value = Number(point[fields[0]] ?? 0);
     return point;
   });
+}
+
+export async function computeAggregateWidget(
+  projectId: string,
+  input: {
+    entity: string;
+    aggregation: MetricDef["operation"];
+    field?: string;
+    groupBy?: string;
+    filters?: DashboardFilters;
+  }
+) {
+  const metricDef: MetricDef = {
+    name: `${input.entity}:${input.aggregation}:${input.field ?? "count"}`,
+    entity: input.entity,
+    operation: input.aggregation,
+    field: input.field,
+  };
+
+  const rows = await getFilteredEntityRows(projectId, input.entity, input.filters ?? {});
+  const records = rows.map((row) => ({
+    ...row.data,
+    createdAt: row.createdAt,
+  }));
+
+  return {
+    value: computeMetricFromRecords(metricDef, records),
+    series: input.groupBy ? computeSeriesFromRecords(records, metricDef, input.groupBy) : [],
+    recordCount: records.length,
+  };
 }

@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth/session";
+import { parseDashboardFilters } from "@/lib/dashboard/filters";
 import { prisma } from "@/lib/db/client";
 import { validateSpec } from "@/lib/validators/specValidator";
 import { computeAllMetrics, computeChartData } from "@/lib/metric-engine/metricEngine";
@@ -44,6 +44,8 @@ export async function GET(req: Request) {
     return apiError(422, "INVALID_SPEC", "Invalid project spec", error);
   }
 
+  const filters = parseDashboardFilters(searchParams);
+
   if (parsed.data.entity && parsed.data.metricX && parsed.data.fields) {
     const entity = getEntity(spec, parsed.data.entity);
     if (!entity) {
@@ -56,10 +58,10 @@ export async function GET(req: Request) {
       return apiError(422, "INVALID_METRIC", `Field ${invalidField} does not exist in entity ${entity.name}`);
     }
 
-    const chart = await computeChartData(project.id, parsed.data.entity, parsed.data.metricX, fields);
+    const chart = await computeChartData(project.id, parsed.data.entity, parsed.data.metricX, fields, filters);
     return apiOk(chart);
   }
 
-  const metrics = await computeAllMetrics(project.id, spec);
+  const metrics = await computeAllMetrics(project.id, spec, filters);
   return apiOk(metrics);
 }
