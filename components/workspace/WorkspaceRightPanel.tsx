@@ -114,7 +114,7 @@ export function WorkspaceRightPanel({ kind, projects }: WorkspaceRightPanelProps
             >
               <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{project.name}</p>
               <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                {new Date(project.updatedAt).toLocaleString()}
+                {new Date(project.updatedAt).toLocaleString("en-CA")}
               </p>
             </Link>
           ))}

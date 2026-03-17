@@ -42,7 +42,7 @@ export function DashboardHistoryGrid({ projects }: DashboardHistoryGridProps) {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Last updated: {new Date(project.updatedAt).toLocaleString()}
+                Last updated: {new Date(project.updatedAt).toLocaleString("en-CA")}
               </p>
               <Button asChild variant="outline" className="w-full">
                 <Link href={`/dashboard/${project.id}`}>Open dashboard</Link>

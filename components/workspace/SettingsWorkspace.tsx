@@ -299,7 +299,7 @@ export function SettingsWorkspace({ email, defaultDisplayName, projects }: Setti
           {projects.map((project) => (
             <div key={project.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
               <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{project.name}</p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Last updated: {new Date(project.updatedAt).toLocaleString()}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Last updated: {new Date(project.updatedAt).toLocaleString("en-CA")}</p>
               <Button asChild variant="outline" className="mt-3 w-full">
                 <Link href={`/dashboard/${project.id}`}>Open dashboard</Link>
               </Button>
