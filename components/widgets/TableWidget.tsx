@@ -11,9 +11,11 @@ interface TableWidgetProps {
   entity: EntityDef;
   records: Array<{ id: string; data: Record<string, unknown> }>;
   onRefresh: () => Promise<void>;
+  pagination?: { page: number; pageSize: number; total: number };
+  onPageChange?: (page: number) => void;
 }
 
-export function TableWidget({ projectId, entity, records, onRefresh }: TableWidgetProps) {
+export function TableWidget({ projectId, entity, records, onRefresh, pagination, onPageChange }: TableWidgetProps) {
   const initialForm = useMemo(
     () => Object.fromEntries(entity.fields.map((f) => [f.name, ""])) as Record<string, string>,
     [entity.fields]
@@ -149,6 +151,33 @@ export function TableWidget({ projectId, entity, records, onRefresh }: TableWidg
         </Table>
         </div>
         </div>
+
+        {pagination && onPageChange && pagination.total > pagination.pageSize ? (
+          <div className="flex items-center justify-between pt-2 text-sm text-slate-600 dark:text-slate-400">
+            <span>
+              Showing {(pagination.page - 1) * pagination.pageSize + 1}–
+              {Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pagination.page <= 1}
+                onClick={() => onPageChange(pagination.page - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pagination.page * pagination.pageSize >= pagination.total}
+                onClick={() => onPageChange(pagination.page + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

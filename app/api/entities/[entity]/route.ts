@@ -10,6 +10,8 @@ import { apiError, apiOk } from "@/lib/api/errors";
 
 const QuerySchema = z.object({
   projectId: z.string().min(1),
+  page: z.coerce.number().int().positive().optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(200).optional().default(50),
 });
 
 interface Params {
@@ -22,7 +24,11 @@ export async function GET(req: Request, { params }: Params) {
 
   const { entity } = await params;
   const { searchParams } = new URL(req.url);
-  const parsed = QuerySchema.safeParse({ projectId: searchParams.get("projectId") });
+  const parsed = QuerySchema.safeParse({
+    projectId: searchParams.get("projectId"),
+    page: searchParams.get("page") ?? undefined,
+    pageSize: searchParams.get("pageSize") ?? undefined,
+  });
 
   if (!parsed.success) {
     return apiError(400, "BAD_REQUEST", "projectId is required");
@@ -35,10 +41,20 @@ export async function GET(req: Request, { params }: Params) {
   if (!project) return apiError(404, "NOT_FOUND", "Project not found");
 
   const filters = parseDashboardFilters(searchParams);
-  const rows = await prisma.dashboardData.findMany({
-    where: { projectId: project.id, entity },
-    orderBy: { createdAt: "desc" },
-  });
+  const { page, pageSize } = parsed.data;
+
+  const [rows, total] = await Promise.all([
+    prisma.dashboardData.findMany({
+      where: { projectId: project.id, entity },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.dashboardData.count({
+      where: { projectId: project.id, entity },
+    }),
+  ]);
+
   const records = applyDashboardFilters(
     rows.map((row) => ({
       ...row,
@@ -47,7 +63,7 @@ export async function GET(req: Request, { params }: Params) {
     filters
   );
 
-  return apiOk(records);
+  return apiOk({ records, page, pageSize, total });
 }
 
 export async function POST(req: Request, { params }: Params) {

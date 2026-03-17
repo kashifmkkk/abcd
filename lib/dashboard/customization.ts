@@ -163,7 +163,12 @@ export async function getDashboardCustomization(projectId: string, spec: Dashboa
       orderBy: { position: "asc" },
       include: { config: true },
     }),
-    customizationPrisma.dashboardData.findMany({ where: { projectId }, select: { data: true, createdAt: true } }),
+    customizationPrisma.dashboardData.findMany({
+      where: { projectId },
+      select: { data: true, createdAt: true },
+      take: 1000,
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
   const legacyWidgets = spec.widgets.map((widget) => buildLegacyWidget(widget, spec));

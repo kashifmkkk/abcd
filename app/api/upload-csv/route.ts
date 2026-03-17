@@ -55,13 +55,18 @@ export async function POST(req: Request) {
     });
 
     if (analysis.typedRows.length > 0) {
-      await prisma.dashboardData.createMany({
-        data: analysis.typedRows.map((row) => ({
-          projectId: project.id,
-          entity: entityName,
-          data: row as unknown as object,
-        })),
-      });
+      const CHUNK_SIZE = 500;
+      const rowsToInsert = analysis.typedRows.map((row) => ({
+        projectId: project.id,
+        entity: entityName,
+        data: row as unknown as object,
+      }));
+
+      for (let i = 0; i < rowsToInsert.length; i += CHUNK_SIZE) {
+        await prisma.dashboardData.createMany({
+          data: rowsToInsert.slice(i, i + CHUNK_SIZE),
+        });
+      }
     }
 
     // Force metric recomputation once import completes so first dashboard render has fresh values.

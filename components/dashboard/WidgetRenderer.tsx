@@ -15,6 +15,8 @@ interface WidgetRendererProps {
   filters: DashboardFilters;
   refreshKey: number;
   onRefresh: () => Promise<void>;
+  pagination?: { page: number; pageSize: number; total: number };
+  onPageChange?: (entityName: string, page: number) => void;
 }
 
 function resolveChartMetric(widget: DashboardWidgetModel, spec: DashboardSpec): string | undefined {
@@ -44,6 +46,8 @@ export function WidgetRenderer({
   filters,
   refreshKey,
   onRefresh,
+  pagination,
+  onPageChange,
 }: WidgetRendererProps) {
   const entity = useMemo(
     () => spec.entities.find((item) => item.name === widget.entity) ?? null,
@@ -103,6 +107,8 @@ export function WidgetRenderer({
           entity={entity}
           records={records[entity.name] ?? []}
           onRefresh={onRefresh}
+          pagination={pagination}
+          onPageChange={onPageChange ? (page) => onPageChange(entity.name, page) : undefined}
         />
       );
 

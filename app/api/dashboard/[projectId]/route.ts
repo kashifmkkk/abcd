@@ -3,7 +3,7 @@ import { getDashboardCustomization, saveDashboardCustomization } from "@/lib/das
 import { parseDashboardFilters } from "@/lib/dashboard/filters";
 import { prisma } from "@/lib/db/client";
 import { validateSpec } from "@/lib/validators/specValidator";
-import { computeMetric, computeMetricSeries } from "@/lib/metric-engine/metricEngine";
+import { computeAllMetricsWithSeries } from "@/lib/metric-engine/metricEngine";
 import { apiError, apiOk } from "@/lib/api/errors";
 import { z } from "zod";
 
@@ -71,22 +71,7 @@ export async function GET(_: Request, { params }: Params) {
   const filters = parseDashboardFilters(new URL(_.url).searchParams);
   const customization = await getDashboardCustomization(project.id, spec);
 
-  const metricEntries = await Promise.all(
-    spec.metrics.map(async (metric) => {
-      const [value, series] = await Promise.all([
-        computeMetric(project.id, metric, undefined, filters),
-        computeMetricSeries(project.id, metric, undefined, filters),
-      ]);
-
-      return [
-        metric.name,
-        {
-          value: value.value,
-          series,
-        },
-      ] as const;
-    })
-  );
+  const computedMetrics = await computeAllMetricsWithSeries(project.id, spec, filters);
 
   const entityPreviewsEntries = await Promise.all(
     spec.entities.map(async (entity) => {
@@ -115,7 +100,7 @@ export async function GET(_: Request, { params }: Params) {
     widgets: customization.widgets,
     layout: customization.layout,
     filterOptions: customization.filterOptions,
-    computedMetrics: Object.fromEntries(metricEntries),
+    computedMetrics,
     entityPreviews: Object.fromEntries(entityPreviewsEntries),
   });
 }

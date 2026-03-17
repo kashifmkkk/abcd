@@ -273,23 +273,74 @@ export async function computeMetricSeries(
 
 /**
  * Compute ALL metrics defined in the spec for a project.
- * Returns a map of metricName → MetricResult.
+ * Pre-fetches entity data once per entity to avoid redundant DB queries.
  */
 export async function computeAllMetrics(
   projectId: string,
   spec: DashboardSpec,
   filters: DashboardFilters = {}
 ): Promise<Record<string, MetricResult>> {
-  const results = await Promise.all(
-    spec.metrics.map((metric) => computeMetric(projectId, metric, undefined, filters))
+  // Group metrics by entity, fetch each entity's rows once
+  const entityNames = [...new Set(spec.metrics.map((m) => m.entity))];
+  const entityRowsMap = new Map<string, Array<{ data: Record<string, unknown>; createdAt: Date }>>();
+
+  await Promise.all(
+    entityNames.map(async (entity) => {
+      const rows = await getFilteredEntityRows(projectId, entity, filters);
+      entityRowsMap.set(entity, rows);
+    })
   );
 
-  return Object.fromEntries(results.map((r) => [r.name, r]));
+  const results: Record<string, MetricResult> = {};
+  for (const metric of spec.metrics) {
+    const rows = entityRowsMap.get(metric.entity) ?? [];
+    const records = rows.map((row) => row.data);
+    const value = computeMetricFromRecords(metric, records);
+    results[metric.name] = {
+      name: metric.name,
+      value: Number.isFinite(value) ? Math.round(value * 100) / 100 : 0,
+    };
+  }
+
+  return results;
 }
 
 /**
- * Compute chart data for a widget: return an array of objects with
- * the x-axis field and the requested metric fields per record.
+ * Compute ALL metrics with their series data in a single pass per entity.
+ * Avoids redundant DB queries when the dashboard API needs both value and series.
+ */
+export async function computeAllMetricsWithSeries(
+  projectId: string,
+  spec: DashboardSpec,
+  filters: DashboardFilters = {}
+): Promise<Record<string, { value: number; series: Array<{ label: string; x: string; value: number }> }>> {
+  const entityNames = [...new Set(spec.metrics.map((m) => m.entity))];
+  const entityRowsMap = new Map<string, Array<{ data: Record<string, unknown>; createdAt: Date }>>();
+
+  await Promise.all(
+    entityNames.map(async (entity) => {
+      const rows = await getFilteredEntityRows(projectId, entity, filters);
+      entityRowsMap.set(entity, rows);
+    })
+  );
+
+  const results: Record<string, { value: number; series: Array<{ label: string; x: string; value: number }> }> = {};
+
+  for (const metric of spec.metrics) {
+    const rows = entityRowsMap.get(metric.entity) ?? [];
+    const dataRecords = rows.map((row) => row.data);
+    const recordsWithDate = rows.map((row) => ({ ...row.data, createdAt: row.createdAt }));
+    const value = computeMetricFromRecords(metric, dataRecords);
+    const series = computeSeriesFromRecords(recordsWithDate, metric);
+
+    results[metric.name] = {
+      value: Number.isFinite(value) ? Math.round(value * 100) / 100 : 0,
+      series,
+    };
+  }
+
+  return results;
+}
  *
  * E.g. for entity=Product, metricX=name, metrics=[stock,price]
  * returns [{ name: "Widget A", stock: 100, price: 9.99 }, ...]

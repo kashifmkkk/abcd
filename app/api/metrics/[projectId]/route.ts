@@ -66,19 +66,11 @@ export async function GET(req: NextRequest, { params }: Params) {
     computeMetricSeries(project.id, metricDef, spec, filters, groupBy),
   ]);
 
-  const metricResult = await computeAggregateWidget(project.id, {
-    entity: metricDef.entity,
-    aggregation: metricDef.operation,
-    field: metricDef.field,
-    groupBy,
-    filters,
-  });
-
   return NextResponse.json({
     metric: metricName,
     value: value.value,
     series,
-    hasData: metricResult.recordCount > 0,
-    recordCount: metricResult.recordCount,
+    hasData: series.length > 0 || value.value !== 0,
+    recordCount: series.reduce((sum, s) => sum + (s.value !== 0 ? 1 : 0), 0),
   });
 }

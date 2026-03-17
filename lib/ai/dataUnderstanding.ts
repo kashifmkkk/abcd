@@ -218,8 +218,14 @@ function buildLayout(widgetIds: string[]) {
 export async function analyzeCsvData(input: CsvAnalysisInput): Promise<CsvAnalysisResult> {
   const entityName = toEntityName(input.fileName);
 
+  // Sample up to 200 rows for type inference to avoid scanning the entire dataset
+  const sampleSize = Math.min(input.rows.length, 200);
+  const sampleRows = input.rows.length <= sampleSize
+    ? input.rows
+    : input.rows.filter((_, i) => i % Math.ceil(input.rows.length / sampleSize) === 0).slice(0, sampleSize);
+
   const inferredFields = input.headers.map((header) => {
-    const values = input.rows.map((row) => row[header] ?? "");
+    const values = sampleRows.map((row) => row[header] ?? "");
     const type = inferFieldType(values);
     const required = values.every((value) => value !== "");
 

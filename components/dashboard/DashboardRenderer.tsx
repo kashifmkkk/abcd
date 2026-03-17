@@ -26,6 +26,7 @@ interface DashboardRendererProps {
 }
 
 type EntityRecordsMap = Record<string, Array<{ id: string; data: Record<string, unknown> }>>;
+type EntityPaginationMap = Record<string, { page: number; pageSize: number; total: number }>;
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 function getDefaultLayout(widgetId: string, index = 0): LayoutItem {
@@ -54,6 +55,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
   const searchParams = useSearchParams();
   const lastUploadTimestamp = searchParams.get("uploadedAt") ?? "";
   const [records, setRecords] = useState<EntityRecordsMap>({});
+  const [entityPagination, setEntityPagination] = useState<EntityPaginationMap>({});
   const [widgets, setWidgets] = useState<DashboardWidgetModel[]>([]);
   const [layout, setLayout] = useState<LayoutItem[]>(spec.layout.items as unknown as LayoutItem[]);
   const [filters, setFilters] = useState<DashboardFilters>({});
@@ -70,8 +72,8 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   const fetchEntity = useCallback(
-    async (entityName: string, activeFilters: DashboardFilters = filters) => {
-      const params = new URLSearchParams({ projectId });
+    async (entityName: string, activeFilters: DashboardFilters = filters, page = 1) => {
+      const params = new URLSearchParams({ projectId, page: String(page), pageSize: "50" });
       appendDashboardFilters(params, activeFilters);
 
       const res = await fetch(`/api/entities/${entityName}?${params.toString()}`, {
@@ -79,7 +81,12 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
       });
       const json = await res.json();
       if (json.success) {
-        setRecords((prev) => ({ ...prev, [entityName]: json.data }));
+        const payload = json.data;
+        setRecords((prev) => ({ ...prev, [entityName]: payload.records ?? payload }));
+        setEntityPagination((prev) => ({
+          ...prev,
+          [entityName]: { page: payload.page ?? 1, pageSize: payload.pageSize ?? 50, total: payload.total ?? 0 },
+        }));
       }
     },
     [filters, projectId]
@@ -370,6 +377,8 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
                       filters={filters}
                       refreshKey={refreshKey}
                       onRefresh={refreshAll}
+                      pagination={widget.entity ? entityPagination[widget.entity] : undefined}
+                      onPageChange={(entityName, page) => void fetchEntity(entityName, filters, page)}
                     />
                   </div>
                 </div>
