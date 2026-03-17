@@ -10,45 +10,35 @@ import {
   logAiValidationError,
 } from "@/lib/logging/aiLogs";
 
-const SYSTEM_PROMPT = `You are an expert SaaS dashboard architect.
-
-Convert user requests into a JSON dashboard specification.
-Return only valid JSON.
-
-Supported field types: string, text, integer, float, boolean, datetime.
-Supported metric operations: count, sum, avg, min, max.
-Supported widget types: kpi, chart, table.
-Supported chart types: bar, line, pie.
-
-Schema:
-{
-  "version": "1.0",
-  "app": { "name": "string", "description": "string" },
-  "auth": { "enabled": true, "roles": ["admin"] },
-  "entities": [{ "name": "Entity", "fields": [{ "name": "field", "type": "string", "required": true }] }],
-  "metrics": [{ "name": "metric_name", "entity": "Entity", "operation": "count", "field": "field" }],
-  "widgets": [{ "id": "widget_id", "type": "kpi", "title": "Title", "metric": "metric_name" }],
-  "layout": { "columns": 12, "items": [{ "i": "widget_id", "x": 0, "y": 0, "w": 4, "h": 2 }] }
+/** Schema field descriptor passed to the LLM for context */
+export interface SchemaField {
+  name: string;
+  type: string;
 }
 
-Entities define database models.
-Metrics define aggregated analytics.
-Widgets define dashboard UI components.
-Do not generate unsupported field types or widget types.`;
+function buildUserPrompt(prompt: string, schema?: SchemaField[]) {
+  let message = `User request: ${prompt}`;
 
-function buildUserPrompt(prompt: string) {
-  return `${SYSTEM_PROMPT}\n\nUser request: ${prompt}`;
+  if (schema && schema.length > 0) {
+    message += `\n\nDetected CSV schema:\n${JSON.stringify(schema, null, 2)}`;
+    message += `\n\nUse these columns as entity fields. Infer appropriate metrics, widgets, and layout from the schema.`;
+  }
+
+  return message;
 }
 
-function buildCorrectionPrompt(prompt: string, rawResponse: string, error: unknown) {
-  return `${SYSTEM_PROMPT}
+function buildCorrectionPrompt(prompt: string, rawResponse: string, error: unknown, schema?: SchemaField[]) {
+  let message = `The previous JSON was invalid.\nOriginal user request: ${prompt}`;
 
-The previous JSON was invalid.
-Original user request: ${prompt}
-Previous response: ${rawResponse}
-Validation error: ${JSON.stringify(error)}
+  if (schema && schema.length > 0) {
+    message += `\n\nDetected CSV schema:\n${JSON.stringify(schema, null, 2)}`;
+  }
 
-Return corrected JSON only.`;
+  message += `\nPrevious response: ${rawResponse}`;
+  message += `\nValidation error: ${JSON.stringify(error)}`;
+  message += `\n\nReturn corrected JSON only.`;
+
+  return message;
 }
 
 export function safeJsonParse(input: string): unknown {
@@ -68,12 +58,12 @@ async function requestAndValidate(prompt: string): Promise<{ spec: DashboardSpec
   return { spec, raw };
 }
 
-export async function generateSpecFromPrompt(prompt: string): Promise<DashboardSpec> {
+export async function generateSpecFromPrompt(prompt: string, schema?: SchemaField[]): Promise<DashboardSpec> {
   if (!prompt || prompt.trim().length < 5) {
     throw new Error("Prompt must be at least 5 characters");
   }
 
-  const userPrompt = buildUserPrompt(prompt.trim());
+  const userPrompt = buildUserPrompt(prompt.trim(), schema);
   logAiPrompt(userPrompt);
 
   try {
@@ -84,7 +74,12 @@ export async function generateSpecFromPrompt(prompt: string): Promise<DashboardS
     const details = error instanceof ZodError ? error.issues : error;
     logAiCorrectionAttempt(details);
 
-    const correctionPrompt = buildCorrectionPrompt(prompt.trim(), typeof details === "string" ? details : JSON.stringify(details), details);
+    const correctionPrompt = buildCorrectionPrompt(
+      prompt.trim(),
+      typeof details === "string" ? details : JSON.stringify(details),
+      details,
+      schema,
+    );
     const { spec } = await requestAndValidate(correctionPrompt);
     return spec;
   }

@@ -12,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
+import { InsightsPanel } from "@/components/dashboard/InsightsPanel";
 import { WidgetSettingsSheet } from "@/components/dashboard/WidgetSettingsSheet";
 import { WidgetRenderer } from "@/components/dashboard/WidgetRenderer";
 import { Button } from "@/components/ui/button";
@@ -297,6 +298,8 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
           </div>
         </div>
       </section>
+
+      <InsightsPanel projectId={projectId} filters={filters} refreshKey={refreshKey} />
 
       {hasAnyWidgets ? (
         <ResponsiveGridLayout
