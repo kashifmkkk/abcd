@@ -92,7 +92,7 @@ export function WorkspaceSidebar({ projects, className, onNavigate }: WorkspaceS
                   <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{project.name}</p>
                   <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                     <Clock3 size={12} />
-                    {new Date(project.updatedAt).toLocaleDateString()}
+                    {new Date(project.updatedAt).toLocaleDateString("en-CA")}
                   </p>
                 </Link>
               ))

@@ -341,6 +341,10 @@ export async function computeAllMetricsWithSeries(
 
   return results;
 }
+
+/**
+ * Compute chart data for a widget: return an array of objects with
+ * the x-axis field and the requested metric fields per record.
  *
  * E.g. for entity=Product, metricX=name, metrics=[stock,price]
  * returns [{ name: "Widget A", stock: 100, price: 9.99 }, ...]
