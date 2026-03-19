@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { AISuggestions } from "@/components/dashboard/AISuggestions";
 import { Moon, Sun } from "lucide-react";
 
@@ -16,6 +17,7 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
   const pathname = usePathname();
   const router = useRouter();
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const isLanding = pathname === "/";
 
@@ -33,6 +35,11 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
     const nextDark = !root.classList.contains("dark");
     root.classList.toggle("dark", nextDark);
     localStorage.setItem("theme", nextDark ? "dark" : "light");
+  }
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    await signOut({ callbackUrl: "/login" });
   }
 
   return (
@@ -104,6 +111,14 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
           {isAuthenticated ? (
             <>
               <Link href="/settings" className={linkCls}>Settings</Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className={linkCls}
+              >
+                {isLoggingOut ? "Logging out..." : "Logout"}
+              </button>
               <span
                 className={
                   isLanding
