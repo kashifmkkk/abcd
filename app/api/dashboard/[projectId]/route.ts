@@ -73,6 +73,27 @@ export async function GET(_: Request, { params }: Params) {
 
   const computedMetrics = await computeAllMetricsWithSeries(project.id, spec, filters);
 
+  const records = Object.fromEntries(
+    await Promise.all(
+      spec.entities.map(async (entity) => {
+        const rows = await prisma.dashboardData.findMany({
+          where: { projectId: project.id, entity: entity.name },
+          select: { id: true, data: true },
+          take: 50,
+          orderBy: { createdAt: "desc" },
+        });
+
+        return [
+          entity.name,
+          rows.map((row) => ({
+            id: row.id,
+            data: row.data as Record<string, unknown>,
+          })),
+        ] as const;
+      })
+    )
+  );
+
   const entityPreviewsEntries = await Promise.all(
     spec.entities.map(async (entity) => {
       const [rows, total] = await Promise.all([
@@ -100,6 +121,7 @@ export async function GET(_: Request, { params }: Params) {
     widgets: customization.widgets,
     layout: customization.layout,
     filterOptions: customization.filterOptions,
+    records,
     computedMetrics,
     entityPreviews: Object.fromEntries(entityPreviewsEntries),
   });

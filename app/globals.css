@@ -6,23 +6,39 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-border: #e2e8f0;
-  --muted: #f8fafc;
-  --muted-foreground: #64748b;
-  --accent: #f59e0b;
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --border: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent: #d97706;
+  --accent-hover: #b45309;
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-border: var(--border);
+  --muted: var(--bg-secondary);
+  --muted-foreground: var(--text-secondary);
 }
 
 .dark {
-  --background: #0b1120;
-  --foreground: #f1f5f9;
-  --card: #0b0f17;
-  --card-border: #222a37;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --accent: #fbbf24;
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-card: #1a1a1a;
+  --border: #27272a;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-border: var(--border);
+  --muted: var(--bg-secondary);
+  --muted-foreground: var(--text-secondary);
 }
 
 @theme inline {
@@ -42,9 +58,13 @@ html.dark {
 
 body {
   min-height: 100vh;
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+body {
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .dashboard-surface {
@@ -273,19 +293,6 @@ aside::-webkit-scrollbar-thumb {
 
 .container_chat_bot .chat .options .btn-submit:focus i {
   color: #f3f6fd;
-
-/* Force Recharts containers to be transparent in dark mode */
-.recharts-wrapper,
-.recharts-surface {
-  background: transparent !important;
-}
-
-/* Fix Recharts default text color */
-.recharts-cartesian-axis-tick-value,
-.recharts-legend-item-text {
-  fill: #94a3b8 !important;
-  color: #94a3b8 !important;
-}
   filter: drop-shadow(0 0 5px #ffffff);
 }
 
@@ -433,4 +440,17 @@ aside::-webkit-scrollbar-thumb {
 
 .final-cta-primary {
   box-shadow: 0 8px 40px rgba(245, 158, 11, 0.22);
+}
+
+/* Force Recharts containers to be transparent in dark mode */
+.recharts-wrapper,
+.recharts-surface {
+  background: transparent !important;
+}
+
+/* Fix Recharts default text color */
+.recharts-cartesian-axis-tick-value,
+.recharts-legend-item-text {
+  fill: #94a3b8 !important;
+  color: #94a3b8 !important;
 }

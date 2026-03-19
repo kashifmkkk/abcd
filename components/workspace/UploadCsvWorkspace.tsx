@@ -50,11 +50,11 @@ export function UploadCsvWorkspace() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">Upload Dataset</h1>
-        <p className="text-muted-foreground mt-1">Ingest data and let AI auto-generate your dashboard structure.</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Upload Dataset</h1>
+        <p className="mt-1 text-slate-500 dark:text-zinc-400">Ingest data and let AI auto-generate your dashboard structure.</p>
       </div>
 
-      <Card>
+      <Card className="dark:border-zinc-800 dark:bg-zinc-900">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UploadCloud size={16} className="text-amber-500" />
@@ -74,11 +74,11 @@ export function UploadCsvWorkspace() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
 
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-slate-500 dark:text-zinc-400">
             Supported formats: CSV and Excel (.xlsx). CSV ingestion is fully supported.
           </p>
 
-          {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+          {error ? <p className="rounded-lg border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-400">{error}</p> : null}
 
           <motion.div whileHover={{ y: -1 }}>
             <Button onClick={onSubmit} disabled={loading} className="gap-2">
@@ -90,23 +90,23 @@ export function UploadCsvWorkspace() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
+        <Card className="dark:border-zinc-800 dark:bg-zinc-900">
           <CardHeader>
             <CardTitle className="text-base">Dataset Preview</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-slate-600 dark:text-slate-300">
+          <CardContent className="text-sm text-slate-600 dark:text-zinc-300">
             After upload, the platform detects entities, fields, and relationships for dashboard generation.
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="dark:border-zinc-800 dark:bg-zinc-900">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Lightbulb size={15} className="text-amber-500" />
               Auto Insights
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-slate-600 dark:text-slate-300">
+          <CardContent className="text-sm text-slate-600 dark:text-zinc-300">
             AI suggests KPIs, charts, and table widgets based on your imported dataset.
           </CardContent>
         </Card>

@@ -127,13 +127,13 @@ export function SettingsWorkspace({ email, defaultDisplayName, projects }: Setti
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-        <h1 className="text-xl font-semibold">Settings</h1>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Manage your profile, account settings, activity, and preferences.</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-white">
+        <h1 className="text-xl font-bold">Settings</h1>
+        <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">Manage your profile, account settings, activity, and preferences.</p>
       </div>
 
       {/* Profile hero */}
-      <section className="rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+      <section className="rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-white">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -163,7 +163,7 @@ export function SettingsWorkspace({ email, defaultDisplayName, projects }: Setti
 
             <div>
               <p className="text-lg font-semibold">{profile.displayName || defaultDisplayName}</p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{email}</p>
+              <p className="text-sm text-slate-500 dark:text-zinc-400">{email}</p>
               <p className="mt-1 inline-flex rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                 Active
               </p>
@@ -178,53 +178,53 @@ export function SettingsWorkspace({ email, defaultDisplayName, projects }: Setti
 
       {/* Account details + preferences */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section id="account-info" className="rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-          <h2 className="text-xl font-semibold">Account Information</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Update your account details and profile metadata.</p>
+        <section id="account-info" className="rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-white">
+          <h2 className="text-xl font-bold">Account Information</h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">Update your account details and profile metadata.</p>
 
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="space-y-1">
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Display Name</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">Display Name</span>
               <input
                 value={profile.displayName}
                 onChange={(e) => setProfile((prev) => ({ ...prev, displayName: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Email</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">Email</span>
               <input
                 value={email}
                 readOnly
-                className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Organization</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">Organization</span>
               <input
                 value={profile.organization}
                 onChange={(e) => setProfile((prev) => ({ ...prev, organization: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
               />
             </label>
 
             <label className="space-y-1">
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Role</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">Role</span>
               <input
                 value={profile.role}
                 onChange={(e) => setProfile((prev) => ({ ...prev, role: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
               />
             </label>
 
             <label className="space-y-1 sm:col-span-2">
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Subscription Plan</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">Subscription Plan</span>
               <select
                 value={profile.plan}
                 onChange={(e) => setProfile((prev) => ({ ...prev, plan: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
               >
                 <option>Free</option>
                 <option>Pro</option>
@@ -238,36 +238,36 @@ export function SettingsWorkspace({ email, defaultDisplayName, projects }: Setti
             <Button onClick={saveAll} disabled={saving}>
               {saving ? "Saving..." : "Save changes"}
             </Button>
-            {savedAt ? <p className="text-xs text-slate-500 dark:text-slate-400">Saved at {savedAt}</p> : null}
+            {savedAt ? <p className="text-xs text-slate-500 dark:text-zinc-400">Saved at {savedAt}</p> : null}
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-          <h2 className="text-xl font-semibold">Preferences</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Set your workspace defaults and AI behavior.</p>
+        <section className="rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-white">
+          <h2 className="text-xl font-bold">Preferences</h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">Set your workspace defaults and AI behavior.</p>
 
           <div className="mt-5 space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-700 dark:bg-zinc-800">
               <p className="text-sm font-medium">Theme</p>
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => applyTheme("light")}
-                  className={`rounded-md px-3 py-1.5 text-xs ${preferences.theme === "light" ? "bg-amber-500 text-black" : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200"}`}
+                  className={`rounded-md px-3 py-1.5 text-xs ${preferences.theme === "light" ? "bg-amber-500 text-black" : "bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-zinc-200"}`}
                 >
                   Light
                 </button>
                 <button
                   type="button"
                   onClick={() => applyTheme("dark")}
-                  className={`rounded-md px-3 py-1.5 text-xs ${preferences.theme === "dark" ? "bg-amber-500 text-black" : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200"}`}
+                  className={`rounded-md px-3 py-1.5 text-xs ${preferences.theme === "dark" ? "bg-amber-500 text-black" : "bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-zinc-200"}`}
                 >
                   Dark
                 </button>
               </div>
             </div>
 
-            <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+            <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-700 dark:bg-zinc-800">
               <span className="text-sm">Notification settings</span>
               <input
                 type="checkbox"
@@ -277,7 +277,7 @@ export function SettingsWorkspace({ email, defaultDisplayName, projects }: Setti
               />
             </label>
 
-            <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+            <label className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-700 dark:bg-zinc-800">
               <span className="text-sm">AI generation settings</span>
               <input
                 type="checkbox"
@@ -291,15 +291,15 @@ export function SettingsWorkspace({ email, defaultDisplayName, projects }: Setti
       </div>
 
       {/* Created dashboards */}
-      <section className="rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-        <h2 className="text-xl font-semibold">Created Dashboards</h2>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">All dashboards you already created, directly accessible from navbar and this page.</p>
+      <section className="rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-white">
+        <h2 className="text-xl font-bold">Created Dashboards</h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-zinc-400">All dashboards you already created, directly accessible from navbar and this page.</p>
 
         <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
           {projects.map((project) => (
-            <div key={project.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
-              <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{project.name}</p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Last updated: {new Date(project.updatedAt).toLocaleString("en-CA")}</p>
+            <div key={project.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
+              <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{project.name}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-zinc-400">Last updated: {new Date(project.updatedAt).toLocaleString("en-CA")}</p>
               <Button asChild variant="outline" className="mt-3 w-full">
                 <Link href={`/dashboard/${project.id}`}>Open dashboard</Link>
               </Button>
@@ -308,7 +308,7 @@ export function SettingsWorkspace({ email, defaultDisplayName, projects }: Setti
         </div>
 
         {projects.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">No dashboards created yet. Create one from the Create page.</p>
+          <p className="mt-4 text-sm text-slate-500 dark:text-zinc-400">No dashboards created yet. Create one from the Create page.</p>
         ) : null}
       </section>
     </div>

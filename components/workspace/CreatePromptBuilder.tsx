@@ -58,11 +58,11 @@ export function CreatePromptBuilder() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">Create Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Use AI prompts to generate a full dashboard layout.</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Create Dashboard</h1>
+        <p className="mt-1 text-slate-500 dark:text-zinc-400">Use AI prompts to generate a full dashboard layout.</p>
       </div>
 
-      <Card>
+      <Card className="dark:border-zinc-800 dark:bg-zinc-900">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles size={16} className="text-amber-500" />
@@ -89,14 +89,14 @@ export function CreatePromptBuilder() {
                 key={item}
                 type="button"
                 onClick={() => setPrompt(item)}
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
               >
                 {item}
               </button>
             ))}
           </div>
 
-          {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+          {error ? <p className="rounded-lg border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-400">{error}</p> : null}
 
           <motion.div whileHover={{ y: -1 }}>
             <Button onClick={onGenerate} disabled={loading} className="gap-2">

@@ -103,6 +103,52 @@ function normalizeGroupLabel(value: unknown): string {
   return normalized.length > 0 ? normalized : "Unknown";
 }
 
+function hasActiveFilters(filters: DashboardFilters): boolean {
+  return Boolean(
+    filters.dateFrom ||
+    filters.dateTo ||
+    filters.category ||
+    filters.region ||
+    filters.status
+  );
+}
+
+async function computeMetricValueFromDb(projectId: string, metric: MetricDef): Promise<number | null> {
+  if (metric.operation === "count") {
+    const value = await prisma.dashboardData.count({
+      where: { projectId, entity: metric.entity },
+    });
+    return value;
+  }
+
+  if (!metric.field) return null;
+
+  const operationSql: Record<Exclude<MetricDef["operation"], "count">, string> = {
+    sum: "SUM",
+    avg: "AVG",
+    min: "MIN",
+    max: "MAX",
+  };
+
+  const sqlOperation = operationSql[metric.operation as Exclude<MetricDef["operation"], "count">];
+  if (!sqlOperation) return null;
+
+  const jsonPath = `$.${metric.field}`;
+  const result = await prisma.$queryRawUnsafe<Array<{ value: number | null }>>(
+    `
+      SELECT ${sqlOperation}(CAST(json_extract("data", ?) AS REAL)) as value
+      FROM "DashboardData"
+      WHERE "projectId" = ? AND "entity" = ?
+    `,
+    jsonPath,
+    projectId,
+    metric.entity
+  );
+
+  const value = result[0]?.value;
+  return value == null ? null : Number(value);
+}
+
 async function getFilteredEntityRows(
   projectId: string,
   entity: string,
@@ -233,6 +279,17 @@ export async function computeMetric(
       name: typeof metric === "string" ? metric : metric.name,
       value: 0,
     };
+  }
+
+  // Use DB-level aggregation for unfiltered requests and fall back to JS when filters are active.
+  if (!hasActiveFilters(filters)) {
+    const dbValue = await computeMetricValueFromDb(projectId, metricDef);
+    if (dbValue != null && Number.isFinite(dbValue)) {
+      return {
+        name: metricDef.name,
+        value: Math.round(dbValue * 100) / 100,
+      };
+    }
   }
 
   const rows = await getFilteredEntityRows(projectId, metricDef.entity, filters);

@@ -20,6 +20,7 @@ import { DashboardHistoryGrid, type WorkspaceProject } from "@/components/worksp
 
 interface DashboardAIWorkspaceProps {
   projects: WorkspaceProject[];
+  projectsLoading?: boolean;
 }
 
 const QUICK_ACTIONS = [
@@ -56,7 +57,7 @@ const EXAMPLE_PROMPTS = [
   "User growth dashboard",
 ];
 
-export function DashboardAIWorkspace({ projects }: DashboardAIWorkspaceProps) {
+export function DashboardAIWorkspace({ projects, projectsLoading = false }: DashboardAIWorkspaceProps) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -122,8 +123,8 @@ export function DashboardAIWorkspace({ projects }: DashboardAIWorkspaceProps) {
           transition={{ duration: 0.35 }}
           className="space-y-2"
         >
-          <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">Hi there!</h1>
-          <p className="text-muted-foreground">What dashboard would you like to create?</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Hi there!</h1>
+          <p className="text-slate-500 dark:text-zinc-400">What dashboard would you like to create?</p>
         </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -140,17 +141,17 @@ export function DashboardAIWorkspace({ projects }: DashboardAIWorkspaceProps) {
                   whileHover={{ y: -3 }}
                 >
                   <Link href={action.href} className="block">
-                    <Card className="h-full cursor-pointer border-slate-200/90 hover:shadow-md transition-all">
+                    <Card className="h-full cursor-pointer border-slate-200 transition-all hover:border-amber-400 hover:shadow-md dark:border-zinc-800 dark:hover:border-amber-500/50">
                       <CardHeader className="pb-2">
                         <CardTitle className="flex items-center gap-2 text-base">
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-zinc-800 dark:text-amber-500">
                             <Icon size={16} />
                           </span>
                           {action.title}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">{action.description}</p>
+                        <p className="text-sm text-slate-500 dark:text-zinc-400">{action.description}</p>
                       </CardContent>
                     </Card>
                   </Link>
@@ -169,17 +170,17 @@ export function DashboardAIWorkspace({ projects }: DashboardAIWorkspaceProps) {
                 whileHover={{ y: -3 }}
                 className="text-left"
               >
-                <Card className="h-full border-slate-200/90 hover:shadow-md transition-all">
+                <Card className="h-full border-slate-200 transition-all hover:border-amber-400 hover:shadow-md dark:border-zinc-800 dark:hover:border-amber-500/50">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-base">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-zinc-800 dark:text-amber-500">
                         <Icon size={16} />
                       </span>
                       {action.title}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{action.description}</p>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400">{action.description}</p>
                   </CardContent>
                 </Card>
               </motion.button>
@@ -192,7 +193,7 @@ export function DashboardAIWorkspace({ projects }: DashboardAIWorkspaceProps) {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.08 }}
-          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-4"
+          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 space-y-4"
         >
           <Input
             value={name}
@@ -214,14 +215,14 @@ export function DashboardAIWorkspace({ projects }: DashboardAIWorkspaceProps) {
                 key={example}
                 type="button"
                 onClick={() => setPrompt(example)}
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
               >
                 {example}
               </button>
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3 dark:border-slate-800">
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3 dark:border-zinc-800">
             <Button asChild variant="outline" size="sm">
               <Link href="/upload">
                 <Upload size={14} />
@@ -252,8 +253,8 @@ export function DashboardAIWorkspace({ projects }: DashboardAIWorkspaceProps) {
           </div>
 
           {showPromptLibrary ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/60">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/60">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
                 Prompt library
               </p>
               <div className="flex flex-wrap gap-2">
@@ -266,7 +267,7 @@ export function DashboardAIWorkspace({ projects }: DashboardAIWorkspaceProps) {
                     key={item}
                     type="button"
                     onClick={() => setPrompt(item)}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                   >
                     {item}
                   </button>
@@ -275,15 +276,17 @@ export function DashboardAIWorkspace({ projects }: DashboardAIWorkspaceProps) {
             </div>
           ) : null}
 
-          {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+          {error ? <p className="rounded-lg border border-red-800 bg-red-950/50 px-3 py-2 text-sm text-red-400">{error}</p> : null}
         </motion.form>
 
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Dashboard History</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{sortedProjects.length} total dashboards</p>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Dashboard History</h2>
+            <p className="text-sm text-slate-500 dark:text-zinc-400">
+              {projectsLoading ? "Loading dashboards..." : `${sortedProjects.length} total dashboards`}
+            </p>
           </div>
-          <DashboardHistoryGrid projects={sortedProjects} />
+          <DashboardHistoryGrid projects={sortedProjects} isLoading={projectsLoading} />
         </section>
     </section>
   );

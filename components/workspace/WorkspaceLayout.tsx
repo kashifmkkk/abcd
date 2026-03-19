@@ -21,7 +21,8 @@ interface WorkspaceLayoutProps {
 
 export function WorkspaceLayout({ kind, projects, children }: WorkspaceLayoutProps) {
   return (
-    <main className="mx-auto w-full max-w-470 p-4 md:p-6 lg:p-8">
+    <main className="w-full bg-slate-50 dark:bg-zinc-900">
+      <div className="mx-auto w-full max-w-470 p-4 md:p-6 lg:p-8">
       <div className="mb-4 flex items-center justify-between lg:hidden">
         <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Workspace</h1>
         <Sheet>
@@ -44,14 +45,13 @@ export function WorkspaceLayout({ kind, projects, children }: WorkspaceLayoutPro
         <WorkspaceSidebar projects={projects} className="hidden w-65 shrink-0 lg:block" />
 
         <div className="min-w-0 flex-1">
-          <div className="mx-auto w-full max-w-300 rounded-2xl border border-slate-200 bg-slate-50/60 p-8 dark:border-slate-800 dark:bg-slate-950/40">
-            {children}
-          </div>
+          {children}
         </div>
 
         <aside className="hidden w-80 shrink-0 xl:block">
           <WorkspaceRightPanel kind={kind} projects={projects} />
         </aside>
+      </div>
       </div>
     </main>
   );

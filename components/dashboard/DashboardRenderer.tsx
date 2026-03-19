@@ -91,6 +91,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [showInsights, setShowInsights] = useState(false);
 
   const fetchEntity = useCallback(
     async (entityName: string, activeFilters: DashboardFilters = filters, page = 1) => {
@@ -119,13 +120,16 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
     const response = await fetch(`/api/dashboard/${projectId}?${params.toString()}`, { cache: "no-store" });
     const json = (await response.json()) as {
       success?: boolean;
-      data?: DashboardCustomizationState;
+      data?: DashboardCustomizationState & { records?: EntityRecordsMap };
     };
 
     if (response.ok && json.success && json.data) {
       setWidgets(json.data.widgets);
       setLayout(json.data.layout.items as unknown as LayoutItem[]);
       setFilterOptions(json.data.filterOptions);
+      if (json.data.records) {
+        setRecords(json.data.records);
+      }
     }
 
     setRefreshKey((prev) => prev + 1);
@@ -138,13 +142,23 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
   }, [fetchEntity, filters, loadDashboardState, spec.entities]);
 
   useEffect(() => {
-    void refreshAll();
-  }, [refreshAll]);
+    void loadDashboardState();
+  }, [loadDashboardState]);
 
   useEffect(() => {
     if (!lastUploadTimestamp) return;
     void refreshAll();
   }, [lastUploadTimestamp, refreshAll]);
+
+  useEffect(() => {
+    if (isBootstrapping) {
+      setShowInsights(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setShowInsights(true), 800);
+    return () => clearTimeout(timer);
+  }, [isBootstrapping]);
 
   const sortedWidgets = useMemo(() => {
     const index = new Map(layout.map((item, position) => [item.i, { ...item, position }]));
@@ -257,7 +271,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
         </p>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
             <label className="space-y-1.5">
@@ -273,7 +287,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
               <select
                 value={filters.category ?? ""}
                 onChange={(event) => setFilters((prev) => ({ ...prev, category: event.target.value || undefined }))}
-                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
               >
                 <option value="">All categories</option>
                 {filterOptions.categories.map((option) => (
@@ -286,7 +300,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
               <select
                 value={filters.region ?? ""}
                 onChange={(event) => setFilters((prev) => ({ ...prev, region: event.target.value || undefined }))}
-                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
               >
                 <option value="">All regions</option>
                 {filterOptions.regions.map((option) => (
@@ -299,7 +313,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
               <select
                 value={filters.status ?? ""}
                 onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value || undefined }))}
-                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
               >
                 <option value="">All statuses</option>
                 {filterOptions.statuses.map((option) => (
@@ -319,9 +333,22 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
         </div>
       </section>
 
-      <InsightsPanel projectId={projectId} filters={filters} refreshKey={refreshKey} />
+      {showInsights ? (
+        <InsightsPanel projectId={projectId} filters={filters} refreshKey={refreshKey} />
+      ) : (
+        <div className="h-24 animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-800/50" />
+      )}
 
-      {hasAnyWidgets ? (
+      {isBootstrapping ? (
+        <div className="grid grid-cols-12 gap-4 p-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className={`h-48 animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-zinc-800 dark:bg-zinc-800/50 ${i < 3 ? "col-span-4" : "col-span-6"}`}
+            />
+          ))}
+        </div>
+      ) : hasAnyWidgets ? (
         <ResponsiveGridLayout
           className="layout"
           layouts={{ lg: sortedWidgets.map((widget) => getWidgetLayout(widget)) }}

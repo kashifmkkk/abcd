@@ -16,6 +16,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const hasFilters = ["dateFrom", "dateTo", "category", "region", "status"]
+    .some((key) => req.nextUrl.searchParams.has(key));
+  const cacheHeader = hasFilters
+    ? "no-store"
+    : "public, s-maxage=60, stale-while-revalidate=300";
+
   const { projectId } = await params;
 
   const project = await prisma.project.findFirst({
@@ -69,5 +75,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   const columns = classifyAllColumns(flattenedRows);
   const insights = generateInsights(columns, flattenedRows);
 
-  return NextResponse.json({ success: true, data: insights });
+  return NextResponse.json(
+    { success: true, data: insights },
+    { headers: { "Cache-Control": cacheHeader } }
+  );
 }

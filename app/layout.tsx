@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { unstable_cache } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authConfig } from "@/lib/auth/authConfig";
 import { Navbar } from "@/components/layout/Navbar";
@@ -23,6 +24,19 @@ export const metadata: Metadata = {
   description: "Config-driven AI-generated dashboard MVP",
 };
 
+const getCachedProjects = unstable_cache(
+  async (userId: string) => {
+    return prisma.project.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+      take: 8,
+      select: { id: true, name: true },
+    });
+  },
+  ["recent-projects"],
+  { revalidate: 30 }
+);
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -32,12 +46,7 @@ export default async function RootLayout({
   const isAuthenticated = !!session?.user;
 
   const recentProjects = session?.user?.id
-    ? await prisma.project.findMany({
-        where: { userId: session.user.id },
-        orderBy: { updatedAt: "desc" },
-        take: 8,
-        select: { id: true, name: true },
-      })
+    ? await getCachedProjects(session.user.id)
     : [];
 
   return (

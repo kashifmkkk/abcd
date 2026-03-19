@@ -21,14 +21,28 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
 
   const isLanding = pathname === "/";
 
+  function isActiveLink(href: string) {
+    if (href === "/dashboard") {
+      return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+    }
+    return pathname === href;
+  }
+
   const dashboardProjectId = useMemo(() => {
     const match = pathname.match(/^\/dashboard\/([^/]+)$/);
     return match?.[1] ?? null;
   }, [pathname]);
 
-  const linkCls = isLanding
-    ? "text-sm text-gray-400 hover:text-white transition-colors"
-    : "text-sm text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors";
+  function linkCls(href?: string) {
+    if (isLanding) {
+      return "text-sm text-gray-400 transition-colors hover:text-amber-400";
+    }
+
+    const active = href ? isActiveLink(href) : false;
+    return active
+      ? "text-sm font-medium text-amber-600 dark:text-amber-400 transition-colors"
+      : "text-sm text-slate-600 hover:text-amber-600 dark:text-zinc-300 dark:hover:text-amber-400 transition-colors";
+  }
 
   function toggleTheme() {
     const root = document.documentElement;
@@ -47,7 +61,7 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
       className={
         isLanding
           ? "navbar-landing sticky top-0 z-40 w-full border-b border-white/10 backdrop-blur"
-          : "sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-[#0b0f17]/95"
+          : "sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur dark:border-zinc-800 dark:bg-[#0a0a0a]/95"
       }
     >
       <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
@@ -58,7 +72,7 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
             className={
               isLanding
                 ? "text-sm font-semibold text-white"
-                : "text-sm font-semibold text-slate-900 dark:text-slate-100"
+                : "text-sm font-bold text-slate-900 dark:text-white"
             }
           >
             {isLanding ? (
@@ -70,10 +84,10 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
 
           {isAuthenticated ? (
             <div className="hidden items-center gap-4 md:flex">
-              <Link href="/dashboard" className={linkCls}>Dashboards</Link>
+              <Link href="/dashboard" className={linkCls("/dashboard")}>Dashboards</Link>
               {recentProjects.length > 0 ? (
                 <div className="group relative">
-                  <button type="button" className={linkCls}>My Dashboards</button>
+                  <button type="button" className={linkCls()}>My Dashboards</button>
                   <div className="invisible absolute left-0 top-8 z-50 w-64 rounded-lg border border-slate-200 bg-white p-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:opacity-100 dark:border-slate-700 dark:bg-slate-900">
                     {recentProjects.slice(0, 6).map((project) => (
                       <Link
@@ -87,18 +101,18 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
                   </div>
                 </div>
               ) : null}
-              <Link href="/create" className={linkCls}>Create</Link>
-              <Link href="/upload" className={linkCls}>Upload CSV</Link>
+              <Link href="/create" className={linkCls("/create")}>Create</Link>
+              <Link href="/upload" className={linkCls("/upload")}>Upload CSV</Link>
               {dashboardProjectId ? (
                 <button
                   type="button"
-                  className={linkCls}
+                  className={linkCls()}
                   onClick={() => setShowSuggestions((prev) => !prev)}
                 >
                   AI Suggestions
                 </button>
               ) : (
-                <span className={isLanding ? "text-sm text-gray-600" : "text-sm text-slate-400"}>
+                <span className={isLanding ? "text-sm text-gray-600" : "text-sm text-slate-400 dark:text-zinc-500"}>
                   AI Suggestions
                 </span>
               )}
@@ -110,12 +124,12 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
         <div className="flex items-center gap-3">
           {isAuthenticated ? (
             <>
-              <Link href="/settings" className={linkCls}>Settings</Link>
+              <Link href="/settings" className={linkCls("/settings")}>Settings</Link>
               <button
                 type="button"
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                className={linkCls}
+                className={linkCls()}
               >
                 {isLoggingOut ? "Logging out..." : "Logout"}
               </button>
@@ -131,13 +145,13 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
             </>
           ) : (
             <>
-              <Link href="/login" className={linkCls}>Login</Link>
+              <Link href="/login" className={linkCls("/login")}>Login</Link>
               <Link
                 href="/register"
                 className={
                   isLanding
                     ? "rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-black hover:bg-amber-400 transition-colors"
-                    : "rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-black hover:bg-amber-400 transition-colors"
+                    : "rounded-md bg-amber-500 px-3 py-1.5 text-sm font-semibold text-black hover:bg-amber-400 transition-colors"
                 }
               >
                 {isLanding ? "Get Started" : "Register"}
@@ -149,7 +163,7 @@ export function Navbar({ isAuthenticated, userEmail, recentProjects = [] }: Navb
             <button
               type="button"
               onClick={toggleTheme}
-              className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              className="ml-1 inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
               aria-label="Toggle theme"
               title="Toggle theme"
             >
