@@ -3,7 +3,8 @@ import { getCurrentUserId } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/client";
 import { validateSpec } from "@/lib/validators/specValidator";
 import { parseDashboardFilters, applyDashboardFilters } from "@/lib/dashboard/filters";
-import { generateInsightsFromSpec } from "@/lib/ai/insightsEngine";
+import { classifyAllColumns } from "@/lib/ai/columnClassifier";
+import { generateInsights } from "@/lib/ai/insightsEngine";
 
 interface Params {
   params: Promise<{ projectId: string }>;
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest, { params }: Params) {
   const filters = parseDashboardFilters(req.nextUrl.searchParams);
 
   // Load all entity rows
-  const entityRows: Record<string, Array<Record<string, unknown>>> = {};
+  const entityRows: Record<string, Array<Record<string, string>>> = {};
   await Promise.all(
     spec.entities.map(async (entity) => {
       const rows = await prisma.dashboardData.findMany({
@@ -44,11 +45,29 @@ export async function GET(req: NextRequest, { params }: Params) {
         filters,
       );
 
-      entityRows[entity.name] = filtered.map((r) => r.data);
+      entityRows[entity.name] = filtered.map((r) => {
+        const normalized: Record<string, string> = {};
+        for (const [key, value] of Object.entries(r.data)) {
+          if (value == null) {
+            normalized[key] = "";
+          } else if (typeof value === "string") {
+            normalized[key] = value;
+          } else if (typeof value === "number" || typeof value === "boolean") {
+            normalized[key] = String(value);
+          } else if (value instanceof Date) {
+            normalized[key] = value.toISOString();
+          } else {
+            normalized[key] = String(value);
+          }
+        }
+        return normalized;
+      });
     }),
   );
 
-  const insights = generateInsightsFromSpec(spec, entityRows);
+  const flattenedRows = Object.values(entityRows).flat();
+  const columns = classifyAllColumns(flattenedRows);
+  const insights = generateInsights(columns, flattenedRows);
 
   return NextResponse.json({ success: true, data: insights });
 }

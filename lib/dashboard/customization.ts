@@ -179,7 +179,7 @@ export async function getDashboardCustomization(projectId: string, spec: Dashboa
     layoutRow
       ? {
           columns: layoutRow.columns,
-          items: Array.isArray(layoutRow.items) ? (layoutRow.items as LayoutItem[]) : [],
+          items: Array.isArray(layoutRow.items) ? (layoutRow.items as unknown as LayoutItem[]) : [],
         }
       : legacyLayout,
     widgets

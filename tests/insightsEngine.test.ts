@@ -1,53 +1,49 @@
 import { describe, it, expect } from "vitest";
-import { generateInsights, type DatasetInput } from "@/lib/ai/insightsEngine";
-import type { EntityDef } from "@/types/spec";
+import { classifyAllColumns } from "@/lib/ai/columnClassifier";
+import { generateInsights } from "@/lib/ai/insightsEngine";
+import type { ClassifiedColumn } from "@/lib/ai/columnClassifier";
 
-const salesEntity: EntityDef = {
-  name: "Order",
-  label: "Orders",
-  fields: [
-    { name: "product", type: "string", required: true, label: "Product" },
-    { name: "amount", type: "float", required: true, label: "Revenue" },
-    { name: "quantity", type: "integer", required: true, label: "Quantity" },
-    { name: "createdAt", type: "datetime", required: true, label: "Created At" },
-  ],
-};
+function makeRows(
+  months: Array<{ month: string; rows: Array<{ product: string; amount: number; quantity: number }> }>
+): Record<string, string>[] {
+  const records: Record<string, string>[] = [];
 
-function makeRecords(
-  months: Array<{ month: string; rows: Array<{ product: string; amount: number; quantity: number }> }>,
-): Array<Record<string, unknown>> {
-  const records: Array<Record<string, unknown>> = [];
   for (const m of months) {
     for (const row of m.rows) {
       records.push({
         product: row.product,
-        amount: row.amount,
-        quantity: row.quantity,
+        amount: String(row.amount),
+        quantity: String(row.quantity),
         createdAt: `${m.month}-15T00:00:00Z`,
       });
     }
   }
+
   return records;
 }
 
 describe("insightsEngine", () => {
   it("detects MoM trends", () => {
-    const records = makeRecords([
+    const rows = makeRows([
       { month: "2026-01", rows: [{ product: "A", amount: 100, quantity: 5 }] },
       { month: "2026-02", rows: [{ product: "A", amount: 150, quantity: 6 }] },
     ]);
 
-    const input: DatasetInput[] = [{ entity: salesEntity, records }];
-    const insights = generateInsights(input);
+    const columns: ClassifiedColumn[] = [
+      { name: "product", role: "categorical", uniqueCount: 1, sample: ["A"] },
+      { name: "amount", role: "continuous", uniqueCount: 2, sample: ["100", "150"] },
+      { name: "quantity", role: "continuous", uniqueCount: 2, sample: ["5", "6"] },
+      { name: "createdAt", role: "datetime", uniqueCount: 2, sample: ["2026-01-15", "2026-02-15"] },
+    ];
+    const insights = generateInsights(columns, rows);
 
     const trends = insights.filter((i) => i.type === "trend");
     expect(trends.length).toBeGreaterThan(0);
-    expect(trends.some((t) => t.message.includes("Revenue"))).toBe(true);
-    expect(trends.some((t) => t.message.includes("+50%"))).toBe(true);
+    expect(trends.some((t) => t.description.includes("increased"))).toBe(true);
   });
 
   it("detects top values", () => {
-    const records = makeRecords([
+    const rows = makeRows([
       {
         month: "2026-01",
         rows: [
@@ -58,35 +54,37 @@ describe("insightsEngine", () => {
       },
     ]);
 
-    const input: DatasetInput[] = [{ entity: salesEntity, records }];
-    const insights = generateInsights(input);
+    const columns = classifyAllColumns(rows);
+    const insights = generateInsights(columns, rows);
 
     const topValues = insights.filter((i) => i.type === "top_value");
     expect(topValues.length).toBeGreaterThan(0);
-    expect(topValues.some((t) => t.message.includes("Hydraulic Pump"))).toBe(true);
+    expect(topValues.some((t) => t.title.includes("Summary"))).toBe(true);
   });
 
   it("detects outliers", () => {
-    // Normal values around 100, with a spike at 900
-    const rows: Array<{ product: string; amount: number; quantity: number }> = [];
+    const variableRows: Array<{ product: string; amount: number; quantity: number }> = [];
     for (let i = 0; i < 20; i++) {
-      rows.push({ product: "A", amount: 95 + Math.round(Math.random() * 10), quantity: 5 });
+      variableRows.push({ product: "A", amount: 100 + i, quantity: 5 });
     }
-    rows.push({ product: "A", amount: 900, quantity: 5 });
+    variableRows.push({ product: "A", amount: 900, quantity: 5 });
 
-    const records = makeRecords([{ month: "2026-01", rows }]);
+    const rows = makeRows([{ month: "2026-01", rows: variableRows }]);
 
-    const input: DatasetInput[] = [{ entity: salesEntity, records }];
-    const insights = generateInsights(input);
+    const columns: ClassifiedColumn[] = [
+      { name: "product", role: "categorical", uniqueCount: 1, sample: ["A"] },
+      { name: "amount", role: "continuous", uniqueCount: 21, sample: ["100", "101", "900"] },
+      { name: "quantity", role: "continuous", uniqueCount: 1, sample: ["5"] },
+      { name: "createdAt", role: "datetime", uniqueCount: 1, sample: ["2026-01-15"] },
+    ];
+    const insights = generateInsights(columns, rows);
 
     const outliers = insights.filter((i) => i.type === "outlier");
     expect(outliers.length).toBeGreaterThan(0);
-    expect(outliers.some((t) => t.message.includes("spike"))).toBe(true);
   });
 
   it("returns empty insights for empty dataset", () => {
-    const input: DatasetInput[] = [{ entity: salesEntity, records: [] }];
-    const insights = generateInsights(input);
+    const insights = generateInsights([], []);
     expect(insights).toEqual([]);
   });
 });

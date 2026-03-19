@@ -30,14 +30,26 @@ type EntityRecordsMap = Record<string, Array<{ id: string; data: Record<string, 
 type EntityPaginationMap = Record<string, { page: number; pageSize: number; total: number }>;
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-function getDefaultLayout(widgetId: string, index = 0): LayoutItem {
-  return { i: widgetId, x: (index * 6) % 12, y: Math.floor(index / 2) * 4, w: 6, h: 4 };
+function getDefaultLayout(widgetId: string, index = 0, widgetType?: string, chartType?: string): LayoutItem {
+  if (widgetType === "kpi") {
+    return { i: widgetId, x: (index * 4) % 12, y: Math.floor(index / 3) * 2, w: 4, h: 2 };
+  }
+  if (chartType === "donut") {
+    return { i: widgetId, x: (index * 4) % 12, y: Math.floor(index / 3) * 3, w: 4, h: 3 };
+  }
+  if (widgetType === "table") {
+    return { i: widgetId, x: 0, y: 999, w: 12, h: 4 };
+  }
+  return { i: widgetId, x: (index * 6) % 12, y: Math.floor(index / 2) * 3, w: 6, h: 3 };
 }
 
 function toVisualization(widget: DashboardWidgetModel): WidgetVisualization {
   if (widget.type === "kpi") return "metric";
   if (widget.type === "table") return "table";
-  return widget.chartType ?? "bar";
+  if (widget.chartType === "line" || widget.chartType === "bar" || widget.chartType === "area" || widget.chartType === "pie" || widget.chartType === "donut" || widget.chartType === "histogram") {
+    return widget.chartType;
+  }
+  return "bar";
 }
 
 function applyVisualization(widget: DashboardWidgetModel, visualization: WidgetVisualization): DashboardWidgetModel {
@@ -55,10 +67,18 @@ function applyVisualization(widget: DashboardWidgetModel, visualization: WidgetV
 export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
   const searchParams = useSearchParams();
   const lastUploadTimestamp = searchParams.get("uploadedAt") ?? "";
+  const initialLayout = useMemo<LayoutItem[]>(() => {
+    const widgetById = new Map(spec.widgets.map((widget) => [widget.id, widget]));
+    return (spec.layout.items as unknown as LayoutItem[]).map((item) => {
+      const widget = widgetById.get(item.i);
+      const minHeight = widget?.type === "kpi" ? 2 : widget?.type === "table" ? 4 : 3;
+      return { ...item, h: Math.max(item.h, minHeight) };
+    });
+  }, [spec.layout.items, spec.widgets]);
   const [records, setRecords] = useState<EntityRecordsMap>({});
   const [entityPagination, setEntityPagination] = useState<EntityPaginationMap>({});
   const [widgets, setWidgets] = useState<DashboardWidgetModel[]>([]);
-  const [layout, setLayout] = useState<LayoutItem[]>(spec.layout.items as unknown as LayoutItem[]);
+  const [layout, setLayout] = useState<LayoutItem[]>(initialLayout);
   const [filters, setFilters] = useState<DashboardFilters>({});
   const [filterOptions, setFilterOptions] = useState<DashboardCustomizationState["filterOptions"]>({
     categories: [],
@@ -147,7 +167,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
   const getWidgetLayout = useCallback(
     (widget: DashboardWidgetModel) => {
       const index = sortedWidgets.findIndex((item) => item.id === widget.id);
-      return layout.find((item) => item.i === widget.id) ?? getDefaultLayout(widget.id, index);
+      return layout.find((item) => item.i === widget.id) ?? getDefaultLayout(widget.id, index, widget.type, widget.chartType);
     },
     [layout, sortedWidgets]
   );
@@ -221,7 +241,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
           x: (sourceLayout.x + 1) % spec.layout.columns,
           y: sourceLayout.y + 1,
         }
-      : getDefaultLayout(duplicateId, sortedWidgets.length);
+      : getDefaultLayout(duplicateId, sortedWidgets.length, sourceWidget.type, sourceWidget.chartType);
 
     setWidgets((prev) => [...prev, duplicateWidgetItem]);
     setLayout((prev) => [...prev, duplicateLayoutItem]);
@@ -307,9 +327,9 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
           layouts={{ lg: sortedWidgets.map((widget) => getWidgetLayout(widget)) }}
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 12, md: 12, sm: 12, xs: 12, xxs: 12 }}
-          rowHeight={44}
+          rowHeight={160}
           margin={[16, 16]}
-          containerPadding={[0, 0]}
+          containerPadding={[16, 16]}
           isResizable
           draggableHandle=".drag-handle"
           onLayoutChange={(next) => updateLayout(next as LayoutItem[])}
@@ -320,7 +340,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
 
             return (
               <div key={widget.id} data-grid={widgetLayout} className="h-full">
-                <div className="flex h-full flex-col rounded-[1.4rem] border border-slate-200/80 bg-white/75 p-2 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/60">
+                <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
                   <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/85 px-2 py-1.5 dark:border-slate-800 dark:bg-slate-900/85">
                     <button
                       type="button"
@@ -371,7 +391,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
                     </div>
                   </div>
 
-                  <div className="min-h-0 flex-1">
+                  <div className="min-h-0 flex-1 h-full p-2">
                     <WidgetRenderer
                       projectId={projectId}
                       widget={widget}
@@ -403,7 +423,7 @@ export function DashboardRenderer({ projectId, spec }: DashboardRendererProps) {
         onOpenChange={setIsAddWidgetOpen}
         onCreate={(widget) => {
           setWidgets((prev) => [...prev, widget]);
-          setLayout((prev) => [...prev, getDefaultLayout(widget.id, prev.length)]);
+          setLayout((prev) => [...prev, getDefaultLayout(widget.id, prev.length, widget.type, widget.chartType)]);
           setIsDirty(true);
         }}
       />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lightbulb, TrendingUp, Trophy, AlertTriangle } from "lucide-react";
+import { Lightbulb, TrendingUp, Trophy, AlertTriangle, PieChart } from "lucide-react";
 import { appendDashboardFilters } from "@/lib/dashboard/filters";
 import type { DashboardFilters } from "@/types/dashboard";
 import type { Insight, InsightType } from "@/types/insights";
@@ -15,6 +15,7 @@ interface InsightsPanelProps {
 const iconMap: Record<InsightType, typeof TrendingUp> = {
   trend: TrendingUp,
   top_value: Trophy,
+  distribution: PieChart,
   outlier: AlertTriangle,
 };
 
@@ -29,6 +30,11 @@ const colorMap: Record<InsightType, { bg: string; text: string; border: string }
     text: "text-amber-600 dark:text-amber-400",
     border: "border-amber-200 dark:border-amber-800",
   },
+  distribution: {
+    bg: "bg-emerald-50 dark:bg-emerald-950/30",
+    text: "text-emerald-600 dark:text-emerald-400",
+    border: "border-emerald-200 dark:border-emerald-800",
+  },
   outlier: {
     bg: "bg-rose-50 dark:bg-rose-950/30",
     text: "text-rose-600 dark:text-rose-400",
@@ -39,8 +45,15 @@ const colorMap: Record<InsightType, { bg: string; text: string; border: string }
 const labelMap: Record<InsightType, string> = {
   trend: "Trend",
   top_value: "Top Value",
+  distribution: "Distribution",
   outlier: "Anomaly",
 };
+
+const severityClassMap = {
+  info: "border-slate-200 dark:border-slate-700",
+  warning: "ring-1 ring-amber-300/50 dark:ring-amber-700/40",
+  positive: "ring-1 ring-emerald-300/50 dark:ring-emerald-700/40",
+} as const;
 
 export function InsightsPanel({ projectId, filters = {}, refreshKey = 0 }: InsightsPanelProps) {
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -107,8 +120,8 @@ export function InsightsPanel({ projectId, filters = {}, refreshKey = 0 }: Insig
 
           return (
             <div
-              key={`${insight.type}-${insight.field}-${index}`}
-              className={`rounded-xl border ${colors.border} ${colors.bg} p-4 transition-shadow hover:shadow-md`}
+              key={`${insight.type}-${insight.title}-${index}`}
+              className={`rounded-xl border ${colors.border} ${colors.bg} ${severityClassMap[insight.severity]} p-4 transition-shadow hover:shadow-md`}
             >
               <div className="mb-2 flex items-center gap-2">
                 <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${colors.bg} ${colors.text}`}>
@@ -119,7 +132,10 @@ export function InsightsPanel({ projectId, filters = {}, refreshKey = 0 }: Insig
                 </span>
               </div>
               <p className="text-sm font-medium leading-snug text-slate-800 dark:text-slate-200">
-                {insight.message}
+                {insight.title}
+              </p>
+              <p className="mt-1 text-sm leading-snug text-slate-700 dark:text-slate-300">
+                {insight.description}
               </p>
             </div>
           );

@@ -209,7 +209,6 @@ export function DashboardShell({ spec, projectId, projectName, children }: Dashb
         <GeneratedDashboardHeader
           title={projectName}
           subtitle="Operations dashboard"
-          projectId={projectId}
           onAiToggle={() => setShowAiDrawer(true)}
           showAi={showAiDrawer}
           onRefresh={() => router.refresh()}

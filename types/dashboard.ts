@@ -1,6 +1,6 @@
 import type { LayoutDef, MetricOperation, WidgetDef } from "@/types/spec";
 
-export type WidgetVisualization = "line" | "bar" | "area" | "pie" | "table" | "metric";
+export type WidgetVisualization = "line" | "bar" | "area" | "pie" | "donut" | "histogram" | "table" | "metric";
 
 export interface DashboardFilters {
   dateFrom?: string;

@@ -1,273 +1,203 @@
 /**
- * AI Insights Engine.
+ * Insights engine for classified CSV datasets.
  *
- * Analyses entity records in-memory and produces human-readable insights:
- *   - Trend detection   (MoM / period-over-period % change)
- *   - Top values         (highest value for a numeric field)
- *   - Outlier detection  (values beyond 2 standard deviations)
- *
- * No external API calls — pure computation over the dataset.
+ * Generates human-readable insights from continuous, categorical, and datetime
+ * columns while explicitly skipping ID/text columns.
  */
 
-import type { Insight } from "@/types/insights";
-import type { DashboardSpec, EntityDef, FieldDef } from "@/types/spec";
+import type { ClassifiedColumn } from "./columnClassifier";
+import type { ChartSpec } from "./chartRecommender";
+import { formatCompact, formatCurrency, formatNumber, formatPercent } from "@/lib/utils/formatters";
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
-function toNumber(value: unknown): number {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+export interface Insight {
+  type: "trend" | "top_value" | "distribution" | "outlier";
+  title: string;
+  description: string;
+  severity: "info" | "warning" | "positive";
 }
 
-function toDate(value: unknown): Date | null {
-  if (value == null) return null;
-  const d = value instanceof Date ? value : new Date(String(value));
-  return Number.isNaN(d.getTime()) ? null : d;
+function toFiniteNumber(value: string | undefined): number | null {
+  if (typeof value !== "string") return null;
+  const parsed = Number(value.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
-function toMonthKey(date: Date): string {
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabel(key: string): string {
-  const [year, month] = key.split("-");
-  const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${names[Number(month) - 1]} ${year}`;
-}
-
-function numericFields(entity: EntityDef): FieldDef[] {
-  return entity.fields.filter((f) => f.type === "integer" || f.type === "float");
-}
-
-function dateFields(entity: EntityDef): FieldDef[] {
-  return entity.fields.filter((f) => f.type === "datetime");
-}
-
-function stringFields(entity: EntityDef): FieldDef[] {
-  return entity.fields.filter((f) => f.type === "string");
-}
-
-function pickDateField(entity: EntityDef): FieldDef | undefined {
-  const preferred = entity.fields.find(
-    (f) => f.type === "datetime" && /(date|time|created|at)/i.test(f.name),
-  );
-  return preferred ?? dateFields(entity)[0];
-}
-
-function pickLabelField(entity: EntityDef): FieldDef | undefined {
-  const preferred = entity.fields.find(
-    (f) => f.type === "string" && /(name|title|label|product|customer|item)/i.test(f.name),
-  );
-  return preferred ?? stringFields(entity)[0];
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return sorted[mid];
 }
 
 function mean(values: number[]): number {
   if (values.length === 0) return 0;
-  return values.reduce((a, b) => a + b, 0) / values.length;
+  return values.reduce((sum, n) => sum + n, 0) / values.length;
 }
 
-function stddev(values: number[]): number {
+function stdDev(values: number[]): number {
   if (values.length < 2) return 0;
   const avg = mean(values);
-  const variance = values.reduce((sum, v) => sum + (v - avg) ** 2, 0) / values.length;
+  const variance = values.reduce((sum, n) => sum + (n - avg) ** 2, 0) / values.length;
   return Math.sqrt(variance);
 }
 
-function formatNumber(n: number): string {
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+function toMonthKey(input: string): string | null {
+  const parsed = new Date(input);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function formatPct(pct: number): string {
-  const sign = pct >= 0 ? "+" : "";
-  return `${sign}${Math.round(pct)}%`;
+function toMonthLabel(monthKey: string): string {
+  const [year, month] = monthKey.split("-");
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
+  return date.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-// ─── trend detection ──────────────────────────────────────────────────────────
+function maybeCurrencyLabel(columnName: string, value: number): string {
+  if (/(salary|revenue|income|cost|price|amount|budget|profit)/i.test(columnName)) {
+    return formatCurrency(value);
+  }
+  return formatCompact(value);
+}
 
-function detectTrends(
-  entity: EntityDef,
-  records: Array<Record<string, unknown>>,
+export function generateInsights(
+  columns: ClassifiedColumn[],
+  rows: Record<string, string>[]
 ): Insight[] {
-  const insights: Insight[] = [];
-  const dateField = pickDateField(entity);
-  if (!dateField) return insights;
+  if (!Array.isArray(columns) || columns.length === 0 || !Array.isArray(rows) || rows.length === 0) {
+    return [];
+  }
 
-  for (const numField of numericFields(entity)) {
-    // Group by month
-    const buckets = new Map<string, number[]>();
-    for (const row of records) {
-      const d = toDate(row[dateField.name]);
-      if (!d) continue;
-      const key = toMonthKey(d);
-      const arr = buckets.get(key) ?? [];
-      arr.push(toNumber(row[numField.name]));
-      buckets.set(key, arr);
+  const continuousColumns = columns.filter((c) => c.role === "continuous");
+  const categoricalColumns = columns.filter((c) => c.role === "categorical");
+  const datetimeColumns = columns.filter((c) => c.role === "datetime");
+
+  const topValueInsights: Insight[] = [];
+  const distributionInsights: Insight[] = [];
+  const trendInsights: Insight[] = [];
+  const outlierInsights: Insight[] = [];
+
+  for (const column of continuousColumns) {
+    const values = rows
+      .map((row) => toFiniteNumber(row[column.name]))
+      .filter((value): value is number => value !== null);
+
+    if (values.length === 0) continue;
+
+    const avg = mean(values);
+    const med = median(values);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const deviation = stdDev(values);
+
+    topValueInsights.push({
+      type: "top_value",
+      title: `${column.name} Summary`,
+      description:
+        `Average ${column.name} is ${maybeCurrencyLabel(column.name, avg)} across ${formatNumber(values.length)} records ` +
+        `(median ${maybeCurrencyLabel(column.name, med)}, min ${maybeCurrencyLabel(column.name, min)}, max ${maybeCurrencyLabel(column.name, max)}).`,
+      severity: "info",
+    });
+
+    if (deviation > 0) {
+      const threshold = avg + deviation * 2;
+      const outlierCount = values.filter((value) => value > threshold).length;
+      if (outlierCount > 0) {
+        const ratio = outlierCount / values.length;
+        outlierInsights.push({
+          type: "outlier",
+          title: `${column.name} Outliers`,
+          description:
+            `${formatNumber(outlierCount)} records in ${column.name} are above ${maybeCurrencyLabel(column.name, threshold)} ` +
+            `(${formatPercent(ratio)} of the dataset).`,
+          severity: ratio > 0.1 ? "warning" : "info",
+        });
+      }
+    }
+  }
+
+  for (const column of categoricalColumns) {
+    const cleanedValues = rows
+      .map((row) => (row[column.name] ?? "").trim())
+      .filter((value) => value.length > 0);
+
+    if (cleanedValues.length === 0) continue;
+
+    const frequency = new Map<string, number>();
+    for (const value of cleanedValues) {
+      frequency.set(value, (frequency.get(value) ?? 0) + 1);
     }
 
-    const sorted = [...buckets.entries()].sort(([a], [b]) => a.localeCompare(b));
-    if (sorted.length < 2) continue;
+    const sorted = [...frequency.entries()].sort((a, b) => b[1] - a[1]);
+    const [topValue, topCount] = sorted[0];
+    const total = cleanedValues.length;
+    const share = total > 0 ? topCount / total : 0;
 
-    const [prevKey, prevValues] = sorted[sorted.length - 2];
-    const [currKey, currValues] = sorted[sorted.length - 1];
-    const prevSum = prevValues.reduce((a, b) => a + b, 0);
-    const currSum = currValues.reduce((a, b) => a + b, 0);
-
-    if (prevSum === 0) continue;
-
-    const pctChange = ((currSum - prevSum) / Math.abs(prevSum)) * 100;
-    if (Math.abs(pctChange) < 1) continue;
-
-    const direction = pctChange > 0 ? "increased" : "decreased";
-    const label = numField.label ?? numField.name;
-    insights.push({
-      type: "trend",
-      message: `${label} ${direction} ${formatPct(Math.abs(pctChange))} MoM (${monthLabel(prevKey)} → ${monthLabel(currKey)})`,
-      field: numField.name,
-      entity: entity.name,
+    distributionInsights.push({
+      type: "distribution",
+      title: `${column.name} Distribution`,
+      description:
+        `${topValue} is the most common ${column.name} value with ${formatNumber(topCount)} records ` +
+        `(${formatPercent(share)} of ${formatNumber(total)} total).`,
+      severity: share >= 0.5 ? "warning" : "positive",
     });
   }
 
-  return insights;
-}
-
-// ─── top values ───────────────────────────────────────────────────────────────
-
-function detectTopValues(
-  entity: EntityDef,
-  records: Array<Record<string, unknown>>,
-): Insight[] {
-  const insights: Insight[] = [];
-  const labelField = pickLabelField(entity);
-
-  for (const numField of numericFields(entity)) {
-    if (labelField) {
-      // Aggregate by label and find top entry
-      const agg = new Map<string, number>();
-      for (const row of records) {
-        const label = String(row[labelField.name] ?? "Unknown");
-        agg.set(label, (agg.get(label) ?? 0) + toNumber(row[numField.name]));
-      }
-      if (agg.size === 0) continue;
-
-      const sorted = [...agg.entries()].sort((a, b) => b[1] - a[1]);
-      const [topLabel, topValue] = sorted[0];
-      const fieldLabel = numField.label ?? numField.name;
-      insights.push({
-        type: "top_value",
-        message: `Top ${labelField.label ?? labelField.name} by ${fieldLabel}: ${topLabel} (${formatNumber(topValue)})`,
-        field: numField.name,
-        entity: entity.name,
-      });
-    } else {
-      // No label field — just report the max value
-      let max = -Infinity;
-      for (const row of records) {
-        const v = toNumber(row[numField.name]);
-        if (v > max) max = v;
-      }
-      if (!Number.isFinite(max)) continue;
-
-      const fieldLabel = numField.label ?? numField.name;
-      insights.push({
-        type: "top_value",
-        message: `Highest ${fieldLabel}: ${formatNumber(max)}`,
-        field: numField.name,
-        entity: entity.name,
+  const trendChartPairs: ChartSpec[] = [];
+  for (const dateColumn of datetimeColumns) {
+    for (const valueColumn of continuousColumns) {
+      trendChartPairs.push({
+        type: "area",
+        title: `${valueColumn.name} Trend over ${dateColumn.name}`,
+        xColumn: dateColumn.name,
+        yColumn: valueColumn.name,
+        aggregation: "avg",
+        description: "Auto-generated trend pair for insight computation.",
       });
     }
   }
 
-  return insights;
-}
+  for (const pair of trendChartPairs) {
+    const monthly = new Map<string, { sum: number; count: number }>();
 
-// ─── outlier detection ────────────────────────────────────────────────────────
+    for (const row of rows) {
+      const monthKey = toMonthKey((row[pair.xColumn] ?? "").trim());
+      const numeric = toFiniteNumber(row[pair.yColumn]);
+      if (!monthKey || numeric === null) continue;
 
-function detectOutliers(
-  entity: EntityDef,
-  records: Array<Record<string, unknown>>,
-): Insight[] {
-  const insights: Insight[] = [];
-  const dateField = pickDateField(entity);
-
-  for (const numField of numericFields(entity)) {
-    const values = records.map((r) => toNumber(r[numField.name]));
-    if (values.length < 5) continue;
-
-    const avg = mean(values);
-    const sd = stddev(values);
-    if (sd === 0) continue;
-
-    const threshold = 2;
-
-    for (let i = 0; i < records.length; i++) {
-      const v = values[i];
-      const zScore = Math.abs((v - avg) / sd);
-      if (zScore < threshold) continue;
-
-      // Build a date label if possible
-      let dateLabel = "";
-      if (dateField) {
-        const d = toDate(records[i][dateField.name]);
-        if (d) {
-          dateLabel = ` on ${d.toISOString().slice(0, 10)}`;
-        }
-      }
-
-      const fieldLabel = numField.label ?? numField.name;
-      const direction = v > avg ? "spike" : "drop";
-      insights.push({
-        type: "outlier",
-        message: `Anomaly detected: ${fieldLabel} ${direction} to ${formatNumber(v)}${dateLabel} (${formatPct(((v - avg) / Math.abs(avg)) * 100)} from mean)`,
-        field: numField.name,
-        entity: entity.name,
-      });
-
-      // Only report the most extreme outlier per field
-      break;
+      const current = monthly.get(monthKey) ?? { sum: 0, count: 0 };
+      current.sum += numeric;
+      current.count += 1;
+      monthly.set(monthKey, current);
     }
+
+    const sorted = [...monthly.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, bucket]) => ({ key, avg: bucket.count > 0 ? bucket.sum / bucket.count : 0 }));
+
+    if (sorted.length < 2) continue;
+
+    const prev = sorted[sorted.length - 2];
+    const current = sorted[sorted.length - 1];
+    if (!Number.isFinite(prev.avg) || Math.abs(prev.avg) < Number.EPSILON) continue;
+
+    const delta = current.avg - prev.avg;
+    const changeRatio = delta / Math.abs(prev.avg);
+    if (!Number.isFinite(changeRatio) || Math.abs(changeRatio) < 0.01) continue;
+
+    trendInsights.push({
+      type: "trend",
+      title: `${pair.yColumn} Monthly Trend`,
+      description:
+        `${pair.yColumn} ${delta >= 0 ? "increased" : "decreased"} by ${formatPercent(Math.abs(changeRatio))} ` +
+        `from ${toMonthLabel(prev.key)} to ${toMonthLabel(current.key)}.`,
+      severity: delta >= 0 ? "positive" : "warning",
+    });
   }
 
-  return insights;
-}
-
-// ─── public API ───────────────────────────────────────────────────────────────
-
-export interface DatasetInput {
-  entity: EntityDef;
-  records: Array<Record<string, unknown>>;
-}
-
-/**
- * Generate data-driven insights for one or more entity datasets.
- *
- * @param datasets - Array of entity + records pairs
- * @returns Array of human-readable insight objects
- */
-export function generateInsights(datasets: DatasetInput[]): Insight[] {
-  const all: Insight[] = [];
-
-  for (const { entity, records } of datasets) {
-    if (records.length === 0) continue;
-    all.push(...detectTrends(entity, records));
-    all.push(...detectTopValues(entity, records));
-    all.push(...detectOutliers(entity, records));
-  }
-
-  return all;
-}
-
-/**
- * Convenience wrapper: derive datasets from a DashboardSpec + row map.
- */
-export function generateInsightsFromSpec(
-  spec: DashboardSpec,
-  entityRows: Record<string, Array<Record<string, unknown>>>,
-): Insight[] {
-  const datasets: DatasetInput[] = spec.entities
-    .filter((e) => (entityRows[e.name]?.length ?? 0) > 0)
-    .map((e) => ({ entity: e, records: entityRows[e.name] }));
-
-  return generateInsights(datasets);
+  const prioritized = [...topValueInsights, ...distributionInsights, ...trendInsights, ...outlierInsights];
+  return prioritized.slice(0, 6);
 }

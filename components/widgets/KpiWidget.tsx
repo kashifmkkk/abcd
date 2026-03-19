@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { TrendingUp } from "lucide-react";
 import { appendDashboardFilters } from "@/lib/dashboard/filters";
+import { formatCompact } from "@/lib/utils/formatters";
 import type { DashboardFilters } from "@/types/dashboard";
 import type { MetricOperation } from "@/types/spec";
 
@@ -85,9 +86,14 @@ export function KpiWidget({
   const numPrev = typeof prevValue === "number" ? prevValue : Number(prevValue);
   const hasTrend = !isNaN(numVal) && !isNaN(numPrev) && numPrev !== 0 && numPrev !== numVal;
   const trendPct = hasTrend ? Math.round(((numVal - numPrev) / Math.abs(numPrev)) * 100) : null;
+  const displayValue = typeof value === "number"
+    ? formatCompact(value)
+    : value == null
+      ? "—"
+      : value;
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="flex h-full flex-col justify-between">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-snug">{title}</p>
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
@@ -103,8 +109,8 @@ export function KpiWidget({
             No data available for current filters.
           </p>
         ) : (
-          <p className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-            {value ?? "—"}
+          <p className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
+            {displayValue}
           </p>
         )}
       </div>

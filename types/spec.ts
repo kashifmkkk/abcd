@@ -43,7 +43,7 @@ export interface MetricDef {
 }
 
 /** Supported chart types */
-export type ChartType = "bar" | "line" | "pie" | "area";
+export type ChartType = "bar" | "line" | "pie" | "area" | "donut" | "histogram" | "scatter";
 
 /** Supported widget types */
 export type WidgetType = "kpi" | "chart" | "table";
@@ -109,6 +109,15 @@ export interface DashboardSpec {
   entities: EntityDef[];
   metrics: MetricDef[];
   widgets: WidgetDef[];
+  /** Optional generated KPI summaries for upload-time analysis */
+  kpis?: Array<{ title: string; value: string; field: string }>;
+  /** Optional generated insight summaries for upload-time analysis */
+  insights?: Array<{
+    type: "trend" | "top_value" | "distribution" | "outlier";
+    title: string;
+    description: string;
+    severity: "info" | "warning" | "positive";
+  }>;
   layout: LayoutDef;
 }
 

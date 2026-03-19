@@ -273,6 +273,19 @@ aside::-webkit-scrollbar-thumb {
 
 .container_chat_bot .chat .options .btn-submit:focus i {
   color: #f3f6fd;
+
+/* Force Recharts containers to be transparent in dark mode */
+.recharts-wrapper,
+.recharts-surface {
+  background: transparent !important;
+}
+
+/* Fix Recharts default text color */
+.recharts-cartesian-axis-tick-value,
+.recharts-legend-item-text {
+  fill: #94a3b8 !important;
+  color: #94a3b8 !important;
+}
   filter: drop-shadow(0 0 5px #ffffff);
 }
 

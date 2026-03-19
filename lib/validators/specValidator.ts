@@ -52,7 +52,7 @@ const MetricDefSchema = z
 
 // ─── Widget ───────────────────────────────────────────────────────────────────
 
-const ChartTypeSchema = z.enum(["bar", "line", "pie", "area"]);
+const ChartTypeSchema = z.enum(["bar", "line", "pie", "area", "donut", "histogram", "scatter"]);
 const WidgetTypeSchema = z.enum(["kpi", "chart", "table"]);
 
 const WidgetDefSchema = z.object({
@@ -110,6 +110,17 @@ export const DashboardSpecSchema = z.object({
   entities: z.array(EntityDefSchema).min(1, "At least one entity is required"),
   metrics: z.array(MetricDefSchema),
   widgets: z.array(WidgetDefSchema),
+  kpis: z.array(z.object({
+    title: z.string(),
+    value: z.string(),
+    field: z.string(),
+  })).optional(),
+  insights: z.array(z.object({
+    type: z.enum(["trend", "top_value", "distribution", "outlier"]),
+    title: z.string(),
+    description: z.string(),
+    severity: z.enum(["info", "warning", "positive"]),
+  })).optional(),
   layout: LayoutDefSchema,
 }).superRefine((spec, ctx) => {
   const entityNames = new Set<string>();
